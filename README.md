@@ -1,106 +1,188 @@
 # Castbridge
 
-Eigenes Multistream-Tool als Alternative zu Restream.io. OBS sendet **einmal**
-an den Server, der verteilt den Stream **in Originalqualität** (ohne
-Neukodierung) an Twitch, YouTube und Kick. Alle drei Chats laufen gebündelt im
-Dashboard und als OBS-Overlay zusammen.
+Multistream-Relay für OBS. Du sendest einmal an den Server, der verteilt den
+Stream unverändert an Twitch, YouTube und Kick und führt die drei Chats wieder
+zusammen — im Dashboard und als Browserquelle für OBS.
 
-> Der Name ist ein Arbeitstitel und steckt nur in `web/src/i18n` und im
-> Seitentitel. Umbenennen heißt: dort suchen und ersetzen.
+[![CI](https://github.com/HalloDerMax/castbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/HalloDerMax/castbridge/actions/workflows/ci.yml)
 
----
+![Dashboard mit OBS-Signal, drei Plattform-Karten und gebündeltem Chat](docs/images/dashboard.png)
 
-## Was drin ist
+## Warum
 
-| Bereich | Stand |
-|---|---|
-| Ingest RTMP + SRT mit Key-Prüfung pro Nutzer | fertig |
-| Weiterleitung ohne Neukodierung (`-c copy`), einzeln start-/stoppbar | fertig |
-| Umschalter OBS ↔ Ersatzbild **ohne Verbindungsabbruch** bei den Plattformen | fertig, mit ffmpeg getestet |
-| 3 automatische Neuverbindungen + Toast mit „Erneut versuchen" | fertig |
-| Vorschaubild alle 10 s mit Hinweis und Zeitstempel | fertig |
-| Warnungen: Bitrate zu hoch, Codec, FPS, Auflösung, fehlender Ton | fertig |
-| OAuth für Twitch, YouTube, Kick + manueller Key als Ausweichweg | fertig |
-| Titel gemeinsam und pro Plattform, Vorlagen „zuletzt verwendet" + Favoriten | fertig |
-| Kategorie über API (Twitch/Kick voll, YouTube nur Rubrik „Gaming") | fertig |
-| Chat-Hub Twitch (IRC) / Kick (Webhooks) / YouTube (Abfrage) | fertig |
-| Emotes: Plattform + 7TV + BTTV + FFZ | fertig |
-| Gelöschte Nachrichten, Timeouts und Bans verschwinden auch im Overlay | fertig |
-| Bots ausblenden mit Liste und eigenen Namen | fertig |
-| Chat-Overlay mit Editor und Live-Vorschau | fertig |
-| Speedtest zum eigenen Server + abgeleitete OBS-Werte | fertig |
-| Einrichtungsassistent in 4 Schritten | fertig |
-| Statistiken, Auffälligkeiten, CSV- und PDF-Bericht | fertig |
-| Admin: Nutzer, Einladungen, laufende Streams, Serverlast, Limit | fertig |
-| Viewbot-Simulator und Erkennungstest | fertig, alle Szenarien geprüft |
-| Zweisprachig DE/EN, handytauglich | fertig |
+Wer auf drei Plattformen gleichzeitig streamt, schickt sein Bild dreimal aus
+dem Haus. Bei 6 Mbit/s pro Ziel sind das 18 Mbit/s Upload, und die meisten
+Anschlüsse geben das nicht her. Dienste wie Restream.io lösen das, kosten aber
+monatlich und kodieren das Video unterwegs neu.
 
-Bewusst **nicht** enthalten (wie im Konzept festgelegt): Neukodierung pro
-Plattform, Chat schreiben oder moderieren, offene Registrierung, YouTube-/VOD-
-Links als Ersatzbild.
+Castbridge macht dasselbe auf eigener Hardware und **ohne Neukodierung**: was
+aus OBS herauskommt, kommt bei den Plattformen an. Der Server kopiert nur die
+Pakete, statt sie neu zu berechnen. Das kostet fast keine CPU und keine
+Bildqualität.
 
----
-
-## Aufbau
+## Wie es funktioniert
 
 ```
-                     ┌──────────────── Hetzner-Server (Coolify) ──────────────┐
-OBS ──RTMP/SRT──►  1935 / 8890 ─► MediaMTX  (Ingest, Key-Prüfung über die App) │
-                     │               │                                        │
-                     │               ├─► ffmpeg (OBS-Quelle)   ─┐              │
-                     │               │                          ├─► FLV-      │
-                     │               └─► ffmpeg (Ersatzbild)   ─┘   Splicer    │
-                     │                                              │         │
-                     │                         ┌────────────────────┼───────┐ │
-                     │                         ├─ ffmpeg -c copy ─► Twitch  │ │
-                     │                         ├─ ffmpeg -c copy ─► YouTube │ │
-                     │                         └─ ffmpeg -c copy ─► Kick    │ │
-                     │                                       (RTMPS)        │ │
-                     │  Web-App (Dashboard, Login, Overlay, Statistik, Admin) │
-                     │  Chat-Hub · Statistik-Sammler · PostgreSQL · Redis      │
-                     └────────────────────────────────────────────────────────┘
+                        ┌──────────────── Server ─────────────────────────────┐
+                        │                                                     │
+OBS ──RTMP/SRT──► 1935 / 8890 ─► MediaMTX                                      │
+                        │           │  Ingest, prüft den Key über die App      │
+                        │           │                                          │
+                        │           ├─► ffmpeg  OBS-Quelle      ─┐             │
+                        │           │                            ├─► FLV-      │
+                        │           └─► ffmpeg  Ersatzmedium    ─┘   Splicer   │
+                        │                                            │        │
+                        │                      ┌─────────────────────┼──────┐  │
+                        │                      ├─ ffmpeg -c copy ─► Twitch  │  │
+                        │                      ├─ ffmpeg -c copy ─► YouTube │  │
+                        │                      └─ ffmpeg -c copy ─► Kick    │  │
+                        │                                   (RTMPS)         │  │
+                        │                                                     │
+                        │  Fastify: REST + WebSocket, liefert auch das         │
+                        │  gebaute Frontend aus                                │
+                        │  Chat-Hub · Statistik-Sammler · PostgreSQL · Redis    │
+                        └─────────────────────────────────────────────────────┘
 ```
 
-### Der Umschalter, also der kniffligste Teil
+Drei Teile, die man getrennt betrachten kann:
 
-Ein ffmpeg, das seine Quelle verliert, beendet sich — und damit bricht die
-RTMP-Verbindung zur Plattform ab. Genau das soll beim Ersatzbild nicht
-passieren.
+**Ingest.** MediaMTX nimmt RTMP und SRT an. Jeder Publish-Versuch geht vorher
+als HTTP-Anfrage an die App (`POST /api/ingest/auth`), die den Stream-Key einem
+Nutzer zuordnet oder ablehnt. Jeder Nutzer hat seinen eigenen Key und kann ihn
+jederzeit neu erzeugen. Die ankommende Bitrate wird nicht aus OBS übernommen,
+sondern aus der Byte-Differenz der MediaMTX-API berechnet — das ist der Wert,
+der wirklich ankommt.
 
-Deshalb liegt zwischen Quelle und Plattform ein eigener **FLV-Splicer**
-(`server/src/relay/flv.ts`):
+**Relay.** Pro Plattform läuft ein eigener ffmpeg-Prozess mit `-c copy`. Jeder
+lässt sich einzeln starten und stoppen, ohne die anderen zu stören. Bricht eine
+Verbindung ab, wird dreimal mit wachsendem Abstand neu verbunden; danach meldet
+sich die Oberfläche mit einem Hinweis und einem Knopf zum erneuten Versuch.
 
-1. Die OBS-Quelle und das Ersatzmedium laufen als je ein ffmpeg, das einen
-   FLV-Strom auf die Standardausgabe schreibt.
-2. Der Splicer zerlegt diesen Strom in Tags, hält Kopf und Sequenz-Köpfe fest
-   und schreibt einen **durchgehenden** Strom an beliebig viele Ausgänge.
+**Web-App.** Fastify bedient REST und WebSocket und liefert im selben Prozess
+das gebaute React-Frontend aus. Ereignisse (Signal, Plattform-Status,
+Chat-Nachrichten, Zuschauerzahlen) gehen über einen Bus an die offenen
+Browser-Verbindungen. Ohne Redis läuft der Bus prozessintern, was für einen
+Server reicht; mit `REDIS_URL` verteilt er über mehrere Instanzen.
+
+### Der Umschalter
+
+Das ist der Teil, an dem die Sache hängt.
+
+Fällt OBS weg, soll ein Ersatzbild einspringen, ohne dass die Plattformen die
+Verbindung verlieren. Der naive Weg funktioniert nicht: ein ffmpeg, dessen
+Eingang endet, beendet sich — und damit bricht auch die RTMP-Verbindung zur
+Plattform ab. Ein Neustart bedeutet für Twitch und YouTube einen neuen Stream.
+
+Deshalb sitzt zwischen Quelle und Plattform ein eigener FLV-Splicer
+([`server/src/relay/flv.ts`](server/src/relay/flv.ts)):
+
+1. OBS-Signal und Ersatzmedium laufen als je ein ffmpeg, das einen FLV-Strom
+   auf die Standardausgabe schreibt.
+2. Der Splicer zerlegt diesen Strom in Tags, merkt sich Kopf und
+   Sequenz-Köpfe und schreibt einen durchgehenden Strom an beliebig viele
+   Ausgänge.
 3. Pro Plattform liest ein `ffmpeg -f flv -i pipe:0 -c copy` aus diesem Strom.
-   Dieses ffmpeg sieht **nie** ein Dateiende, auch wenn die Quelle getauscht
-   wird.
-4. Gewechselt wird nur auf einem Keyframe, und die Zeitstempel laufen
-   lückenlos weiter.
+   Dieser Prozess sieht **nie** ein Dateiende, auch wenn die Quelle darunter
+   getauscht wird.
+4. Gewechselt wird nur auf einem Keyframe. Die Zeitstempel laufen pro Spur
+   lückenlos weiter, Rückschritte werden abgefangen — sonst lehnt ein strenger
+   Muxer den Strom ab.
 
-Damit die Plattformen den Tausch mitmachen, wird das Ersatzmedium beim ersten
-Ausfall einmalig **genau auf die Parameter des OBS-Signals** umkodiert: gleiche
-Auflösung, FPS, GOP-Länge, Profil, Pixelformat, Bitrate und Audioformat
-(`server/src/relay/standby.ts`). Nur in dieser Zeit kodiert der Server
-überhaupt.
+Damit der Tausch durchgeht, wird das Ersatzmedium beim ersten Ausfall einmalig
+auf die Parameter des OBS-Signals umkodiert: Auflösung, Bildrate, GOP-Länge,
+Pixelformat, Bitrate, Audioformat sowie **Profil und Level** des Videos
+([`relay/standby.ts`](server/src/relay/standby.ts)). Nur in dieser Zeit kodiert
+der Server überhaupt.
 
-Geprüft mit zwei echten ffmpeg-Quellen und einem Wechsel mitten im Strom:
-durchgehender Strom, **0 Zeitstempel-Rückschritte pro Spur**, h264 + aac
-erhalten, ffmpeg dekodiert das Ergebnis ohne Fehler.
+Geprüft wird das nicht per Augenmaß, sondern im Test: zwei echte ffmpeg-Quellen,
+ein Wechsel mitten im Strom, und danach muss der Weg, den das Relay geht
+(`-c copy -f flv`), fehlerfrei durchlaufen.
 
----
+## Oberfläche
 
-## Schnellstart für die Entwicklung
+Alle Ansichten gibt es zweisprachig (DE/EN) und sie funktionieren vollständig
+auf dem Handy. Die Bilder unten zeigen Beispieldaten.
 
-Nötig: Node 20 oder neuer, ffmpeg im Pfad, eine PostgreSQL-Datenbank.
+### OBS einrichten
+
+Server, Schlüssel und die empfohlenen Werte zum Kopieren. Die Empfehlung kommt
+aus einem Speedtest, der den Upload zum eigenen Server misst, nicht zu
+irgendeinem Messdienst.
+
+![Einrichtungsassistent mit Server, Stream-Schlüssel und empfohlenen OBS-Werten](docs/images/obs-einrichten.png)
+
+### Plattformen verbinden
+
+Normalerweise per Anmeldung (OAuth), wofür der Admin die Entwickler-Apps
+einmalig hinterlegt. Daneben gibt es überall den manuellen Weg mit Stream-Key,
+samt Anleitung, wo man ihn findet. Jede Karte sagt ehrlich, was auf dieser
+Plattform geht und was nicht.
+
+![Einstellungen mit den drei Plattform-Karten und dem manuellen Eintragen eines Stream-Keys](docs/images/plattformen.png)
+
+### Chat
+
+Die drei Chats laufen zusammen, jede Nachricht mit Plattform-Symbol. Emotes
+kommen von der jeweiligen Plattform sowie von 7TV, BTTV und FFZ. Löscht ein Mod
+eine Nachricht, verschwindet sie auch hier und im Overlay; bei Timeouts und
+Bans alle Nachrichten der Person. Geschrieben wird aus dem Tool bewusst nicht.
+
+![Chat-Ansicht mit Nachrichten von Twitch, YouTube und Kick](docs/images/chat.png)
+
+### Chat-Overlay
+
+Eigene Seite mit Token für die OBS-Browserquelle. Der Editor zeigt die
+Änderungen sofort an Beispielnachrichten, und offene Overlays übernehmen neue
+Einstellungen ohne Neuladen.
+
+![Overlay-Editor mit Live-Vorschau und Einstellungen](docs/images/overlay-editor.png)
+
+### Statistiken
+
+Zuschauer im Verlauf je Plattform, Chatrate, Ereignisse, dazu Hinweise auf
+auffällige Verläufe mit Zeitstempel und Rohwerten. Export als CSV und als
+gestalteter PDF-Bericht.
+
+![Statistik mit Diagramm, Kennzahlen und Auffälligkeiten](docs/images/statistik.png)
+
+### Admin
+
+Es gibt keine offene Registrierung; neue Konten entstehen nur über
+Einladungslinks, die ablaufen und einmal gelten. Dazu der Blick auf das, was
+gerade läuft: wer sendet, mit welcher Bitrate, auf welchen Plattformen, und ob
+gerade das Ersatzbild überbrückt. Das Limit gleichzeitiger Streams schützt den
+Server und lässt sich im Betrieb ändern, ohne neu zu deployen.
+
+![Admin-Überblick mit laufenden Streams, Serverlast und Stream-Limit](docs/images/admin.png)
+
+## Stack
+
+| Teil | Technik |
+|---|---|
+| Ingest | MediaMTX (RTMP 1935, SRT 8890) |
+| Weiterleitung | ffmpeg, ein Prozess pro Plattform, `-c copy` |
+| Server | Node 24, TypeScript, Fastify 5, `ws` |
+| Datenbank | PostgreSQL 16, Migrationen als SQL-Dateien |
+| Zwischenspeicher | Redis, optional |
+| Frontend | React 18, Vite 6, kein UI-Framework |
+| PDF | pdfkit, Diagramm von Hand gezeichnet |
+| Betrieb | Docker Compose, Coolify |
+
+Bewusst wenig Abhängigkeiten: kein ORM, kein Komponenten-Framework, keine
+Auth-Bibliothek. Passwörter über `scrypt` aus der Standardbibliothek,
+Stream-Keys und Tokens mit AES-256-GCM verschlüsselt in der Datenbank.
+
+## Schnellstart
+
+Vorausgesetzt: Node 20 oder neuer, ffmpeg im Pfad, eine PostgreSQL-Datenbank.
+Für den Ingest zusätzlich MediaMTX, sonst läuft alles außer Signal, Relay und
+Vorschaubild.
 
 ```bash
 cp .env.example .env
 ```
 
-Geheimnisse erzeugen und in die `.env` eintragen:
+Zwei Geheimnisse erzeugen und in die `.env` eintragen:
 
 ```bash
 node -e "console.log('SECRET_KEY='+require('crypto').randomBytes(32).toString('base64'))"
@@ -110,138 +192,137 @@ node -e "console.log('SECRET_KEY='+require('crypto').randomBytes(32).toString('b
 node -e "console.log('SESSION_SECRET='+require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-Dann Server und Oberfläche:
-
-```bash
-npm --prefix server install
-```
-
-```bash
-npm --prefix server run build
-```
-
-```bash
-npm --prefix server start
-```
+Frontend bauen, Server starten:
 
 ```bash
 npm --prefix web install
 ```
 
 ```bash
-npm --prefix web run dev
+npm --prefix web run build
 ```
-
-Die Oberfläche läuft auf `http://localhost:5173` und leitet `/api` und `/ws`
-an den Server auf Port 3000 weiter. Beim ersten Start wird das Schema
-angelegt und aus `ADMIN_EMAIL` / `ADMIN_PASSWORD` das Admin-Konto erzeugt.
-
-Für den Ingest zusätzlich MediaMTX starten, mit `mediamtx/mediamtx.yml` als
-Konfiguration. Ohne MediaMTX funktioniert alles außer Signal, Relay und
-Vorschaubild.
-
----
-
-## Lokal testen
-
-Der ganze Kern lässt sich ohne Server prüfen. Sofort und ohne Datenbank:
 
 ```bash
 npm --prefix server install
 ```
 
 ```bash
+npm --prefix server start
+```
+
+Die App läuft dann auf <http://localhost:3000> und legt beim ersten Start das
+Schema sowie aus `ADMIN_EMAIL` und `ADMIN_PASSWORD` das Admin-Konto an. Wer am
+Frontend arbeitet, nimmt statt des gebauten Stands `npm --prefix web run dev`
+auf Port 5173; der leitet `/api` und `/ws` weiter.
+
+Ausführlich, inklusive MediaMTX auf dem eigenen Rechner und echtem Streamen von
+daheim: [docs/LOKAL.md](docs/LOKAL.md).
+
+## Tests
+
+```bash
 npm --prefix server run verify
 ```
 
-37 Prüfungen in etwa einer Minute: Umschalter gegen echtes ffmpeg,
-Ersatzmedium samt Profil-Zuordnung, alle sechs Viewbot-Szenarien und die
-HTTP-Schicht. Wie es weitergeht bis zum echten Streamen vom eigenen PC steht
-in **[docs/LOKAL.md](docs/LOKAL.md)**.
+Baut und prüft in einem Lauf, ohne Datenbank, in etwa einer Minute. Die Tests
+arbeiten mit echtem ffmpeg statt mit Attrappen:
 
----
+| Datei | Was geprüft wird |
+|---|---|
+| `test/flv-splice.test.js` | Quellenwechsel mitten im Strom, Zeitstempel pro Spur, der Relay-Pfad `-c copy -f flv` |
+| `test/standby.test.js` | Aufbereitung des Ersatzmediums, Profil-Zuordnung für Baseline, Main und High, Wechsel OBS → Ersatzbild |
+| `test/detector.test.js` | Erkennung auffälliger Zuschauerverläufe, samt Gegenprobe mit einem echten Raid, der nicht gemeldet werden darf |
+| `test/http-smoke.test.js` | Routen, Zugangsschutz, MediaMTX-Hook, Webhook-Signaturpflicht, Ausliefern der Oberfläche |
 
-## Betrieb
+Dieselben Schritte laufen in der CI bei jedem Push, dort zusätzlich der
+Docker-Build.
 
-**[docs/DEPLOY.md](docs/DEPLOY.md)** — GitHub und Coolify einrichten, und wie
-eine Änderung danach von `git push` bis zum laufenden Server kommt: CI als
-Türsteher, Auto-Deploy, Migrationen, Zurückrollen.
-
-**[docs/SETUP.md](docs/SETUP.md)** — Subdomain und Hetzner-Firewall (1935/TCP
-und 8890/UDP, **nicht** über den Coolify-Proxy), die Entwickler-Apps bei Twitch,
-Google und Kick Schritt für Schritt, und was beim ersten Stream zu prüfen ist.
-
-Und **[docs/VIEWBOT-SIMULATOR.md](docs/VIEWBOT-SIMULATOR.md)** für den
-Erkennungstest und das Einstellen der Schwellen.
-
----
-
-## Verzeichnisse
+## Projektaufbau
 
 ```
 server/
-  migrations/            SQL, wird beim Start automatisch angewendet
+  migrations/          SQL, wird beim Start in Namensreihenfolge angewendet
+  test/                Tests, laufen gegen dist/
   src/
-    config.ts            Konfiguration aus der Umgebung
-    index.ts             Start, Fastify, Routen, Herunterfahren
-    lib/                 Datenbank, Krypto, Zugang, Einladungen, Ereignisbus
-    ingest/mediamtx.ts   MediaMTX-API, Überwachung, Bitrate aus Bytes
+    index.ts           Start, Fastify, Routen, Herunterfahren
+    config.ts          Konfiguration aus der Umgebung
+    lib/               Datenbank, Krypto, Zugang, Einladungen, Ereignisbus
+    ingest/            MediaMTX-API, Überwachung, Bitrate aus Bytes
     relay/
-      flv.ts             FLV-Parser und Splicer (der Umschalter)
-      session.ts         eine Sitzung pro Nutzer, Relays, Neuverbindung
-      standby.ts         Ersatzmedium passend aufbereiten
-      thumbnail.ts       Vorschaubild alle 10 s
-      manager.ts         Registry, Limit gleichzeitiger Streams
-    platforms/           Twitch, YouTube, Kick + Konten und Tokens
-    chat/                Hub, IRC, YouTube-Abfrage, Emotes, Bot-Liste
-    stats/               Sammler, Detektor, Simulator, Abfragen, Export
-    routes/              HTTP und WebSocket
+      flv.ts           FLV-Parser und Splicer
+      session.ts       eine Sitzung pro Nutzer, Relays, Neuverbindung
+      standby.ts       Ersatzmedium passend aufbereiten
+      thumbnail.ts     Vorschaubild alle 10 s
+      manager.ts       Registry, Limit gleichzeitiger Streams
+    platforms/         Twitch, YouTube, Kick, Konten und Tokens
+    chat/              Hub, IRC, YouTube-Abfrage, Emotes, Bot-Liste
+    stats/             Sammler, Erkennung, Abfragen, CSV- und PDF-Export
+    routes/            HTTP und WebSocket
 web/
   src/
-    i18n/                alle Texte, DE und EN
-    lib/                 API, Sitzung, Live-Verbindung, Formate
-    components/          Karten, Diagramm, Chat, Overlay, Simulator
-    pages/               Login, Einladung, Assistent, Dashboard, Chat,
-                         Overlay-Editor, Overlay, Statistik, Einstellungen, Admin
-mediamtx/mediamtx.yml
-docker-compose.yml
+    i18n/              alle Texte, DE und EN
+    lib/               API, Sitzung, Live-Verbindung, Formate
+    components/        Karten, Diagramm, Chat, Overlay
+    pages/             Login, Einladung, Assistent, Dashboard, Chat,
+                       Overlay-Editor, Overlay, Statistik, Einstellungen, Admin
+mediamtx/              Konfiguration für Server und für lokal
+docs/                  Anleitungen und Bilder
 ```
 
----
+## Betrieb
 
-## Was geprüft ist und was nicht
+[docs/DEPLOY.md](docs/DEPLOY.md) — GitHub und Coolify einrichten, und wie eine
+Änderung danach von `git push` bis zum laufenden Server kommt: CI als Türsteher,
+Auto-Deploy, Migrationen, Zurückrollen.
 
-**Geprüft** — `npm test` im Ordner `server`, 37 Prüfungen in 4 Dateien:
+[docs/SETUP.md](docs/SETUP.md) — Subdomain, Hetzner-Firewall und die
+Entwickler-Apps bei Twitch, Google und Kick, Schritt für Schritt.
 
-- Server und Oberfläche übersetzen ohne Typfehler, die Oberfläche baut durch.
-- **Umschalter** gegen echtes ffmpeg: Quellenwechsel mitten im Strom, keine
-  Zeitstempel-Rückschritte pro Spur, und der Pfad, den das Relay wirklich nimmt
-  (`-c copy -f flv`), bleibt fehlerfrei.
-- **Ersatzmedium:** Aufbereitung trifft Auflösung, Codec, Tonformat sowie
-  Profil und Level des OBS-Signals, geprüft für Baseline, Main und High.
-- **Erkennung** gegen alle sechs Simulator-Szenarien: fünf erkannt, der echte
-  Raid als Gegenprobe korrekt nicht gemeldet.
-- **HTTP-Schicht:** 13 Prüfungen über `fastify.inject()` (Zugangsschutz,
-  MediaMTX-Hook, Webhook-Signaturpflicht, Body-Parser, Ausliefern der
-  Oberfläche).
+Zwei Dinge, die beim Aufsetzen regelmäßig Zeit kosten:
 
-Beim Aufbau dieser Tests kamen drei echte Fehler heraus, die behoben sind: ein
-schleichender Anstieg war an den Zuwächsen allein nicht erkennbar, ein
-abfließender Raid löste falschen Alarm aus, und das Ersatzbild war fest auf
-Profil High kodiert, obwohl OBS auch Baseline oder Main senden kann.
+- **1935/TCP und 8890/UDP gehen nicht über den Coolify-Proxy.** Der spricht
+  HTTP. Beide Ports sind direkt am MediaMTX-Container gemappt und müssen in der
+  Firewall offen sein.
+- **Ein Deployment beendet laufende Streams.** Der Container wird getauscht,
+  die ffmpeg-Prozesse fallen weg. Das Ersatzbild hilft dagegen nicht, es
+  überbrückt einen Ausfall von OBS und keinen Neustart des Servers.
 
-**Noch nicht geprüft, weil dafür Zugänge und ein Server nötig sind:**
+## Plattform-Eigenheiten
 
-- Die echten Plattform-Schnittstellen. Die Aufrufe folgen der jeweiligen
-  Dokumentation, aber ob jeder Endpunkt genau so antwortet, zeigt erst der
-  erste Lauf mit echten Entwickler-Apps. Betroffen sind vor allem:
-  - **Kick:** ob der Stream-Key über die API herausgegeben wird. Der Code
-    probiert drei Endpunkte und fällt sonst sauber auf den manuellen Weg
-    zurück, mit Anleitung in der Oberfläche.
-  - **YouTube:** Tageskontingent im Dauerbetrieb. Der Chat hält sich an die
-    von Google vorgeschlagene Wartezeit, mindestens 5 Sekunden, und stellt bei
-    `quotaExceeded` ab, statt weiter zu hämmern.
-- Ein Durchlauf gegen echtes Postgres und MediaMTX.
-- Dass Twitch, YouTube und Kick den Splice tatsächlich schlucken. Die
-  Parameter sind dafür gebaut, bewiesen ist es erst mit dem ersten Test.
-  `docs/SETUP.md` beschreibt, wie man das in 15 Minuten prüft.
+Hier unterscheiden sich die drei stärker, als einem lieb ist. Die Oberfläche
+zeigt pro Plattform an, was geht, statt es zu verschweigen.
+
+| | Twitch | YouTube | Kick |
+|---|---|---|---|
+| Protokoll | RTMP | RTMP | **RTMPS** |
+| Stream-Key über API | ja | ja | unklar, wird zur Laufzeit geprüft |
+| Titel setzen | ja | ja | ja |
+| Kategorie | Spiel frei wählbar | nur Rubrik „Gaming" | Spiel frei wählbar |
+| Chat | IRC über WebSocket | Abfrage mit Tageskontingent | Webhooks, braucht öffentliche Adresse |
+| Bitrate | etwa 6000 kbps bei H.264 | höher möglich | höher möglich |
+
+Daraus folgt für den Betrieb: Twitch ist der Engpass, nach dem sich die Bitrate
+in OBS richtet. Bei YouTube lässt sich über die Schnittstelle nur die Rubrik
+setzen, das konkrete Spiel muss man dort selbst eintragen. Kicks Chat kommt per
+Webhook, läuft also erst auf dem Server und nicht auf dem Laptop.
+
+## Stand
+
+Was an echtem Material geprüft ist: der Umschalter samt Relay-Pfad gegen
+ffmpeg, die Aufbereitung des Ersatzmediums über alle drei H.264-Profile, die
+Erkennung auffälliger Verläufe, die HTTP-Schicht, und dass Server wie Frontend
+ohne Typfehler bauen.
+
+Was noch aussteht, weil es Zugänge und einen Server braucht: ein Durchlauf
+gegen die echten Plattform-Schnittstellen. Die Aufrufe folgen der jeweiligen
+Dokumentation, aber ob jeder Endpunkt genau so antwortet, zeigt erst der erste
+Lauf mit eigenen Entwickler-Apps. Offen sind vor allem, ob Kick den Stream-Key
+über die API herausgibt (der Code probiert drei Endpunkte und fällt sonst
+sauber auf den manuellen Weg zurück) und ob YouTubes Tageskontingent im
+Dauerbetrieb reicht (der Chat hält sich an die vorgeschlagene Wartezeit,
+mindestens 5 Sekunden, und stellt bei `quotaExceeded` ab statt weiterzulaufen).
+
+Ebenfalls noch nicht bewiesen: dass Twitch, YouTube und Kick den Quellenwechsel
+im laufenden Betrieb schlucken. Die Parameter sind dafür gebaut und der Test
+zeigt, dass der Strom technisch sauber bleibt. [docs/SETUP.md](docs/SETUP.md)
+beschreibt im letzten Abschnitt, wie man das in einer Viertelstunde durchprobiert.
