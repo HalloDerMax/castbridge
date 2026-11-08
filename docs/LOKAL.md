@@ -15,7 +15,11 @@ Installation.
 Braucht nur Node und ffmpeg, beides ist bei dir vorhanden. Keine Datenbank.
 
 ```bash
-cd server && npm install && npm run build && npm test
+npm --prefix server install
+```
+
+```bash
+npm --prefix server run verify
 ```
 
 Das prüft in etwa einer Minute:
@@ -104,11 +108,15 @@ Rechner ist das genau richtig.
 Oberfläche einmal bauen, dann den Server starten:
 
 ```bash
-cd web && npm install && npm run build
+npm --prefix web install
 ```
 
 ```bash
-cd server && npm start
+npm --prefix web run build
+```
+
+```bash
+npm --prefix server start
 ```
 
 Jetzt <http://localhost:3000> öffnen und mit `ADMIN_EMAIL` und
@@ -119,7 +127,7 @@ Wer am Frontend arbeitet, nimmt statt des gebauten Stands den
 Entwicklungsserver mit Neuladen bei jeder Änderung:
 
 ```bash
-cd web && npm run dev
+npm --prefix web run dev
 ```
 
 Der läuft dann auf <http://localhost:5173> und leitet `/api` und `/ws` an
@@ -235,7 +243,7 @@ den Kick-Chat brauchst du die öffentliche Adresse.
 |---|---|
 | `npm start` hängt bei „Warte auf Datenbank" | Postgres läuft nicht, oder `DATABASE_URL` stimmt nicht. |
 | Anmeldung schlägt fehl, obwohl die Zugangsdaten stimmen | `ADMIN_EMAIL`/`ADMIN_PASSWORD` werden nur beim **ersten** Start angelegt. Nach einer Änderung Passwort in der Oberfläche ändern oder die Zeile in `users` löschen. |
-| Oberfläche zeigt nur JSON statt der Seite | `web` wurde nicht gebaut. `cd web && npm run build`. |
+| Oberfläche zeigt nur JSON statt der Seite | `web` wurde nicht gebaut. `npm --prefix web run build`. |
 | Dashboard bleibt bei „Warte auf OBS-Signal" | MediaMTX läuft nicht, oder es wurde mit `mediamtx.yml` statt `mediamtx.local.yml` gestartet. |
 | MediaMTX schreibt „authentication failed" | Die App läuft nicht oder antwortet nicht auf `127.0.0.1:3000`. Reihenfolge beachten. |
 | Port 1935 belegt | Ein anderes Programm hält ihn, oft ein zweites OBS oder ein alter MediaMTX-Prozess. |

@@ -11,6 +11,12 @@ git push → GitHub → CI prüft (Typen, Build, 37 Tests, Docker-Abbild)
                                       └── Migrationen laufen beim Start selbst
 ```
 
+> **Zu den Befehlen:** Jeder Block unten ist genau **ein** Befehl, nacheinander
+> auszuführen. Grund: Windows PowerShell 5.1 kennt `&&` nicht und bricht eine
+> verkettete Zeile mit „Das Token `&&` ist in dieser Version kein gültiges
+> Anweisungstrennzeichen" ab. In der Git-Bash oder in PowerShell 7 würde die
+> Verkettung gehen, so funktioniert es überall.
+
 ---
 
 ## 1. Repository anlegen
@@ -41,7 +47,11 @@ Dagegen **müssen** `server/package-lock.json` und `web/package-lock.json` dabei
 sein. Der Docker-Build nutzt `npm ci`, und das verlangt diese Dateien.
 
 ```bash
-git add . && git commit -m "Castbridge: erster Stand"
+git add -A
+```
+
+```bash
+git commit -m "Castbridge: erster Stand"
 ```
 
 Dann das Repository auf GitHub. Mit der GitHub-CLI in einem Schritt:
@@ -54,7 +64,11 @@ Ohne CLI: auf github.com ein **privates** Repository `castbridge` anlegen, ohne
 README und ohne .gitignore, und dann:
 
 ```bash
-git remote add origin git@github.com:DEIN-NAME/castbridge.git && git push -u origin main
+git remote add origin git@github.com:DEIN-NAME/castbridge.git
+```
+
+```bash
+git push -u origin main
 ```
 
 **Privat, nicht öffentlich.** Es stecken keine Geheimnisse im Code, aber es gibt
@@ -251,7 +265,15 @@ Was die CI prüft, bevor irgendetwas deployt wird:
 Für Kleinigkeiten direkt auf `main`:
 
 ```bash
-git add -A && git commit -m "Bitrate-Warnung früher anzeigen" && git push
+git add -A
+```
+
+```bash
+git commit -m "Bitrate-Warnung früher anzeigen"
+```
+
+```bash
+git push
 ```
 
 Für alles, was schiefgehen kann, über einen Branch, damit die CI vor dem
@@ -271,7 +293,7 @@ Zusammenführen nach `main` löst das Deployment aus.
 Vorher lokal prüfen kostet eine Minute und erspart einen roten Build:
 
 ```bash
-cd server && npm run build && npm test
+npm --prefix server run verify
 ```
 
 ### Was ein Deployment mit laufenden Streams macht
@@ -314,7 +336,11 @@ dann läuft wieder der alte Stand. Dauert so lange wie ein normaler Build.
 Alternativ über Git, wenn ein Commit der Übeltäter ist:
 
 ```bash
-git revert HEAD && git push
+git revert HEAD
+```
+
+```bash
+git push
 ```
 
 Das baut einen neuen Commit, der die Änderung zurücknimmt, und löst denselben

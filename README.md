@@ -113,11 +113,23 @@ node -e "console.log('SESSION_SECRET='+require('crypto').randomBytes(32).toStrin
 Dann Server und Oberfläche:
 
 ```bash
-cd server && npm install && npm run build && npm start
+npm --prefix server install
 ```
 
 ```bash
-cd web && npm install && npm run dev
+npm --prefix server run build
+```
+
+```bash
+npm --prefix server start
+```
+
+```bash
+npm --prefix web install
+```
+
+```bash
+npm --prefix web run dev
 ```
 
 Die Oberfläche läuft auf `http://localhost:5173` und leitet `/api` und `/ws`
@@ -135,7 +147,11 @@ Vorschaubild.
 Der ganze Kern lässt sich ohne Server prüfen. Sofort und ohne Datenbank:
 
 ```bash
-cd server && npm install && npm run build && npm test
+npm --prefix server install
+```
+
+```bash
+npm --prefix server run verify
 ```
 
 37 Prüfungen in etwa einer Minute: Umschalter gegen echtes ffmpeg,

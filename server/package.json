@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/index.js",
     "test": "node test/run.js",
+    "verify": "tsc -p tsconfig.json && node test/run.js",
     "dev": "tsc -p tsconfig.json --watch"
   },
   "dependencies": {
