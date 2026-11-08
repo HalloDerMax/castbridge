@@ -30,8 +30,9 @@ Das prüft in etwa einer Minute:
   bleibt.
 - **Das Ersatzmedium.** Standardbild erzeugen, auf Auflösung, Profil und Level
   eines OBS-Signals aufbereiten, Profil-Zuordnung für Baseline, Main und High.
-- **Die Viewbot-Erkennung.** Alle sechs Szenarien durch den echten Detektor,
-  einschließlich der Gegenprobe mit einem echten Raid.
+- **Die Erkennung auffälliger Verläufe.** Mehrere Zuschauerkurven durch den
+  echten Detektor, einschließlich der Gegenprobe mit einem echten Raid, der
+  nicht gemeldet werden darf.
 - **Die HTTP-Schicht.** Zugangsschutz, MediaMTX-Hook, Webhook-Signaturpflicht,
   Body-Parser, Ausliefern der Oberfläche.
 
@@ -43,9 +44,9 @@ ohne Datenbank, ohne MediaMTX und ohne Plattform-Zugänge.
 ## Stufe 2: Die Oberfläche im Browser — braucht Postgres
 
 Danach kannst du dich anmelden, durch den Einrichtungsassistenten gehen,
-Plattformen verbinden, den Overlay-Editor benutzen und den
-Viewbot-Simulator im Admin-Bereich durchrechnen lassen. Nur Signal, Relay und
-Vorschaubild fehlen noch, dafür ist Stufe 3 nötig.
+Plattformen verbinden, den Overlay-Editor benutzen und den Admin-Bereich
+ansehen. Nur Signal, Relay und Vorschaubild fehlen noch, dafür ist Stufe 3
+nötig.
 
 ### Postgres ohne Installation
 
@@ -142,8 +143,7 @@ Port 3000 weiter.
 - Titel und Kategorie setzen, Titelvorlagen
 - Chat lesen, sobald eine Plattform über Anmeldung verbunden ist
 - Overlay-Editor mit Live-Vorschau, Overlay-URL in OBS einsetzen
-- **Viewbot-Simulator** im Admin-Bereich: Szenarien durchrechnen, Kurven
-  ansehen, Schwellen einstellen. Dafür braucht es keinen laufenden Stream.
+- Admin-Bereich: Nutzer, Einladungslinks, Limit gleichzeitiger Streams
 - Statistiken, CSV- und PDF-Bericht
 
 ---

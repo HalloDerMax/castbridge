@@ -254,7 +254,7 @@ Was die CI prüft, bevor irgendetwas deployt wird:
 - Typen von Server und Frontend
 - Frontend-Build
 - `npm test`: die 37 Prüfungen, darunter der Umschalter gegen echtes ffmpeg und
-  alle sechs Viewbot-Szenarien
+  die Erkennung auffälliger Zuschauerverläufe
 - Der Docker-Build selbst, damit Fehler im Dockerfile nicht erst auf dem Server
   auffallen
 
