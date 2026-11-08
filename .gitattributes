@@ -1,0 +1,21 @@
+# Zeilenenden festnageln: im Repository und in der Arbeitskopie LF.
+# Sonst baut Windows CRLF ein, Linux LF, und jeder Wechsel erzeugt
+# Scheinänderungen in der Historie. Im Container laufen sowieso LF.
+* text=auto eol=lf
+
+# Binärdateien nicht anfassen
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.flv binary
+*.mp4 binary
+*.mov binary
+*.mkv binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+
+# Lockfiles in Zusammenführungen nicht Zeile für Zeile mischen
+package-lock.json -diff

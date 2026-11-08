@@ -1,0 +1,1547 @@
+<title>Castbridge Vorschau</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  /* Layout: feste Kopfzeile mit Bildschirm-Umschalter, darunter je Ansicht
+     ein zweispaltiges Raster, das bei Handybreite zu einer Spalte wird.
+     Farben und Abstände sind aus server-seitig gepflegten web/src/styles.css
+     übernommen, damit die Vorschau dem echten Stand entspricht. */
+  :root {
+    color-scheme: dark;
+
+    --bg: #080b12;
+    --bg-raised: #10151f;
+    --bg-card: #141a26;
+    --bg-input: #0d121b;
+    --border: #212a3a;
+    --border-strong: #2d3850;
+    --text: #e9edf7;
+    --text-dim: #98a2b8;
+    --text-faint: #6b7489;
+    --accent: #6d5efc;
+    --accent-soft: #6d5efc22;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    --err: #ef4444;
+    --twitch: #9146ff;
+    --youtube: #ff0033;
+    --kick: #53fc18;
+
+    --font: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+    --radius: 14px;
+    --radius-sm: 9px;
+    --shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto;
+    height: env(safe-area-inset-top, 0px);
+    z-index: 60;
+    background: #060910;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  h1, h2, h3 { margin: 0 0 6px; line-height: 1.25; font-weight: 650; text-wrap: balance; }
+  h1 { font-size: 23px; }
+  h2 { font-size: 17px; }
+  h3 { font-size: 14px; }
+  p { margin: 0 0 10px; color: var(--text-dim); line-height: 1.55; max-width: 68ch; }
+
+  /* ── Vorschau-Rahmen ──────────────────────────────── */
+
+  .mock-bar {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 50;
+    background: #060910;
+    border-bottom: 1px solid var(--border);
+  }
+  .mock-bar-inner {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 9px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+  .mock-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #ffc86b;
+    background: #2b1f08;
+    border: 1px solid #8a5a0b;
+    border-radius: 999px;
+    padding: 3px 9px;
+    flex: none;
+  }
+  .mock-note { font-size: 12.5px; color: var(--text-faint); flex: 1 1 240px; min-width: 0; }
+  .screens { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .screens::-webkit-scrollbar { display: none; }
+  .screens button {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 550;
+    white-space: nowrap;
+    padding: 6px 11px;
+    min-height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .screens button:hover { background: var(--bg-raised); color: var(--text); }
+  .screens button[aria-current="true"] { background: var(--accent-soft); color: #b9b1ff; border-color: #3b33a0; }
+
+  /* ── App-Kopfzeile ───────────────────────────────── */
+
+  .topbar {
+    background: rgba(8, 11, 18, 0.95);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-inner {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: -0.2px; flex: none; }
+  .brand svg { width: 26px; height: 26px; }
+  .nav { display: flex; gap: 2px; overflow-x: auto; flex: 1; scrollbar-width: none; min-width: 0; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav span {
+    padding: 7px 12px;
+    border-radius: var(--radius-sm);
+    color: var(--text-dim);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .nav span.active { background: var(--accent-soft); color: #b9b1ff; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; flex: none; }
+
+  main {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 18px 70px;
+  }
+
+  .page-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  /* ── Karten ──────────────────────────────────────── */
+
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; min-width: 0; }
+  .card + .card { margin-top: 14px; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+
+  .grid { display: grid; gap: 14px; }
+  .cols-3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .cols-2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .dash { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  @media (max-width: 960px) { .dash { grid-template-columns: minmax(0, 1fr); } }
+
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .row.between { justify-content: space-between; }
+  .spacer { flex: 1; }
+  .mt { margin-top: 12px; }
+  .mb { margin-bottom: 12px; }
+  .sep { height: 1px; background: var(--border); margin: 14px 0; }
+
+  /* ── Knöpfe ──────────────────────────────────────── */
+
+  button.ui, .btn {
+    font: inherit;
+    font-weight: 550;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 14px;
+    min-height: 38px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-raised);
+    color: var(--text);
+    cursor: default;
+  }
+  button.ui.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.ui.danger { background: #2a1016; border-color: #5c2030; color: #ffb4bf; }
+  button.ui.ghost { background: transparent; border-color: transparent; color: var(--text-dim); padding: 6px 8px; min-height: 32px; }
+  button.ui.sm { min-height: 32px; padding: 5px 10px; font-size: 13px; }
+  button.ui.big { width: 100%; min-height: 48px; font-size: 16px; }
+  button.ui[disabled] { opacity: 0.45; }
+
+  /* ── Formulare ───────────────────────────────────── */
+
+  .field { display: block; margin-bottom: 12px; }
+  .field > .label { display: block; font-size: 13px; font-weight: 550; color: var(--text); margin-bottom: 5px; }
+  .hint { font-size: 12.5px; color: var(--text-faint); line-height: 1.5; margin-top: 5px; }
+  .inp, select.inp {
+    width: 100%;
+    font: inherit;
+    padding: 9px 11px;
+    min-height: 38px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-input);
+    color: var(--text);
+  }
+  .inp.mono { font-family: var(--mono); font-size: 12.5px; }
+  .inp.ph { color: var(--text-faint); }
+  .copy-row { display: flex; gap: 6px; align-items: stretch; }
+  .copy-row .inp { min-width: 0; }
+  .check { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 10px; }
+  .box {
+    width: 17px; height: 17px; flex: none; margin-top: 2px;
+    border-radius: 4px; border: 1px solid var(--border-strong); background: var(--bg-input);
+    display: grid; place-items: center;
+  }
+  .box.on { background: var(--accent); border-color: var(--accent); }
+  .box.on svg { width: 12px; height: 12px; color: #fff; }
+  .range { height: 6px; border-radius: 99px; background: var(--bg-input); border: 1px solid var(--border); position: relative; margin: 14px 0 4px; }
+  .range > i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 99px; }
+  .range > b { position: absolute; top: 50%; width: 15px; height: 15px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); }
+
+  /* ── Marken ──────────────────────────────────────── */
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+    background: var(--bg-raised); border: 1px solid var(--border); color: var(--text-dim);
+  }
+  .pill.ok { background: #0d2518; border-color: #1d5336; color: #6ee7a0; }
+  .pill.warn { background: #2b1f08; border-color: #6b4c12; color: #fcd34d; }
+  .pill.err { background: #2a1016; border-color: #5c2030; color: #ffa3b0; }
+  .pill.sim { background: #2b1f08; border-color: #8a5a0b; color: #ffc86b; }
+
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); flex: none; }
+  .dot.live { background: var(--ok); box-shadow: 0 0 0 3px #22c55e33; animation: pulse 2s infinite; }
+  .dot.warn { background: var(--warn); }
+  .dot.err { background: var(--err); }
+  @keyframes pulse { 50% { opacity: 0.45; } }
+  @media (prefers-reduced-motion: reduce) { .dot.live { animation: none; } }
+
+  .platform-card { border-top: 3px solid var(--border-strong); }
+  .platform-card.twitch { border-top-color: var(--twitch); }
+  .platform-card.youtube { border-top-color: var(--youtube); }
+  .platform-card.kick { border-top-color: var(--kick); }
+
+  .metric { font-size: 27px; font-weight: 700; letter-spacing: -0.6px; font-variant-numeric: tabular-nums; }
+  .metric small { display: block; font-size: 12px; font-weight: 500; color: var(--text-faint); letter-spacing: 0; }
+
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; font-size: 13.5px; margin: 0; }
+  .kv dt { color: var(--text-faint); }
+  .kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+  .notice { border-radius: var(--radius-sm); padding: 11px 13px; font-size: 13.5px; line-height: 1.55; border: 1px solid var(--border-strong); background: var(--bg-raised); color: var(--text-dim); }
+  .notice.warn { background: #241a07; border-color: #6b4c12; color: #f3cf8a; }
+  .notice.err { background: #230e13; border-color: #5c2030; color: #ffbcc6; }
+  .notice.ok { background: #0b2014; border-color: #1d5336; color: #9ae6bb; }
+  .notice.info { background: #10182c; border-color: #27375c; color: #b7c6ea; }
+  .notice.small { font-size: 12.5px; }
+
+  /* ── Vorschaubild ────────────────────────────────── */
+
+  .preview { position: relative; border-radius: var(--radius-sm); overflow: hidden; background: #05070b; aspect-ratio: 16 / 9; border: 1px solid var(--border); max-width: 100%; }
+  .preview svg { display: block; width: 100%; height: 100%; }
+  .preview .badge {
+    position: absolute; left: 8px; right: 8px; bottom: 8px;
+    display: flex; gap: 8px; flex-wrap: wrap;
+    font-size: 11.5px; color: #cbd5e1;
+    background: rgba(5, 7, 11, 0.8); border-radius: 7px; padding: 5px 8px; line-height: 1.4;
+  }
+
+  /* ── Chat ────────────────────────────────────────── */
+
+  .chat-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  .chat-msg { display: flex; gap: 7px; padding: 5px 7px; border-radius: 7px; font-size: 14px; line-height: 1.45; word-break: break-word; }
+  .chat-msg.bot { opacity: 0.55; }
+  .chat-msg .pico { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+  .chat-msg .author { font-weight: 650; }
+  .emote {
+    display: inline-block; vertical-align: -0.25em;
+    padding: 1px 5px; margin: 0 1px;
+    border-radius: 5px; font-size: 0.82em; font-weight: 600;
+    background: #2b2350; color: #cfc6ff; border: 1px solid #3d3470;
+  }
+
+  /* ── Vorschläge ──────────────────────────────────── */
+
+  .suggest-wrap { position: relative; }
+  .suggest {
+    position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px);
+    background: var(--bg-raised); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .suggest-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 14px; }
+  .suggest-item + .suggest-item { border-top: 1px solid #1b2231; }
+  .suggest-item .star { color: var(--text-faint); display: flex; }
+  .suggest-item .star.on { color: #fcd34d; }
+
+  /* ── Toasts ──────────────────────────────────────── */
+
+  .toasts { display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: var(--bg-raised); border: 1px solid var(--border-strong);
+    border-left: 3px solid var(--text-faint); border-radius: var(--radius-sm);
+    box-shadow: var(--shadow); padding: 11px 13px; font-size: 13.5px;
+  }
+  .toast.success { border-left-color: var(--ok); }
+  .toast.warn { border-left-color: var(--warn); }
+  .toast.error { border-left-color: var(--err); }
+  .toast .t-title { font-weight: 600; margin-bottom: 2px; }
+  .toast .t-detail { color: var(--text-faint); font-size: 12.5px; }
+
+  /* ── Tabellen ────────────────────────────────────── */
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--text-faint); font-weight: 550; font-size: 12.5px; }
+
+  code.block {
+    display: block; font-family: var(--mono); font-size: 12.5px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 9px 11px; overflow-x: auto; white-space: pre; color: #c9d4ee;
+  }
+
+  /* ── Assistent ───────────────────────────────────── */
+
+  .steps { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+  .step { flex: 1 1 130px; padding: 9px 11px; border-radius: var(--radius-sm); background: var(--bg-raised); border: 1px solid var(--border); font-size: 12.5px; color: var(--text-faint); }
+  .step.active { border-color: var(--accent); color: #c2bbff; background: var(--accent-soft); }
+  .step.done { color: #7ee0a5; border-color: #1d5336; }
+  .step b { display: block; font-size: 13.5px; color: inherit; }
+
+  /* ── Overlay-Vorschau ───────────────────────────── */
+
+  .overlay-preview {
+    border-radius: var(--radius-sm); border: 1px dashed var(--border-strong);
+    padding: 10px; min-height: 260px; display: flex; flex-direction: column; justify-content: flex-end;
+    background-image:
+      linear-gradient(45deg, #1a1f2b 25%, transparent 25%),
+      linear-gradient(-45deg, #1a1f2b 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #1a1f2b 75%),
+      linear-gradient(-45deg, transparent 75%, #1a1f2b 75%);
+    background-size: 18px 18px;
+    background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+    overflow: hidden;
+  }
+  .overlay-msg {
+    margin-bottom: 6px; padding: 4px 9px; border-radius: 8px;
+    display: flex; gap: 7px; align-items: flex-start; width: fit-content; max-width: 100%;
+    background: rgba(11, 15, 23, 0.55);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.85);
+    font-size: 17px; line-height: 1.35;
+  }
+
+  /* ── Diagramm ────────────────────────────────────── */
+
+  .chart { display: block; width: 100%; height: auto; }
+  .chart-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-dim); margin-top: 8px; }
+  .chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; }
+
+  .center-page { display: grid; place-items: center; padding-block: 40px; }
+  .center-page .card { width: 100%; max-width: 420px; }
+
+  .muted { color: var(--text-faint); }
+  .small { font-size: 12.5px; }
+  .mono { font-family: var(--mono); }
+  .nowrap { white-space: nowrap; }
+  .caps { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-faint); }
+
+  @media (max-width: 560px) {
+    .card { padding: 13px; }
+    h1 { font-size: 20px; }
+    .brand span { display: none; }
+  }
+</style>
+
+<div class="mock-bar">
+  <div class="mock-bar-inner">
+    <span class="mock-tag">Vorschau</span>
+    <span class="mock-note">Nur zum Ansehen. Nichts hier ist verbunden, alle Zahlen sind Beispiele.</span>
+    <nav class="screens" id="screens" aria-label="Bildschirm wählen">
+      <button type="button" data-screen="dashboard" aria-current="true">Dashboard</button>
+      <button type="button" data-screen="login">Login</button>
+      <button type="button" data-screen="wizard">Einrichtung</button>
+      <button type="button" data-screen="settings">Einstellungen</button>
+      <button type="button" data-screen="chat">Chat</button>
+      <button type="button" data-screen="overlay">Overlay</button>
+      <button type="button" data-screen="stats">Statistik</button>
+      <button type="button" data-screen="admin">Admin</button>
+    </nav>
+  </div>
+</div>
+
+<div class="topbar" id="apptopbar">
+  <div class="topbar-inner">
+    <span class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="8" fill="#6d5efc"></rect>
+        <path d="M9 20V12l7 4 7-4v8" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <span>Castbridge</span>
+    </span>
+    <nav class="nav" id="appnav">
+      <span data-nav="dashboard" class="active">Dashboard</span>
+      <span data-nav="chat">Chat</span>
+      <span data-nav="overlay">Overlay</span>
+      <span data-nav="stats">Statistiken</span>
+      <span data-nav="admin">Admin</span>
+    </nav>
+    <span class="topbar-right">
+      <span class="dot live" title="verbunden"></span>
+      <span class="pill">DE</span>
+      <span class="btn" style="padding:7px 9px;min-height:34px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"></circle>
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4z" stroke="currentColor" stroke-width="1.5"></path>
+        </svg>
+      </span>
+      <span class="small muted nowrap">Abmelden</span>
+    </span>
+  </div>
+</div>
+
+<main>
+
+  <!-- ══════════════════ DASHBOARD ══════════════════ -->
+  <section id="s-dashboard">
+    <div class="page-head">
+      <div>
+        <h1>Dashboard</h1>
+        <div class="small muted">Max</div>
+      </div>
+      <div class="row">
+        <button class="ui primary" type="button">Alle live schalten</button>
+        <button class="ui danger" type="button">Alles stoppen</button>
+      </div>
+    </div>
+
+    <div class="dash">
+      <div>
+        <div class="card">
+          <div class="card-head">
+            <div class="row">
+              <span class="dot live"></span>
+              <h2 style="margin:0">OBS-Signal empfangen</h2>
+            </div>
+            <span class="pill">1 h 12 min</span>
+          </div>
+
+          <dl class="kv mb">
+            <dt>Auflösung</dt><dd>1920 × 1080</dd>
+            <dt>Bilder/Sek.</dt><dd>30</dd>
+            <dt>Bitrate</dt><dd>5.840 kbps</dd>
+            <dt>Codec</dt><dd>H264 / AAC</dd>
+          </dl>
+
+          <div class="preview">
+            <svg viewBox="0 0 640 360" role="img" aria-label="Standbild des OBS-Signals">
+              <defs>
+                <linearGradient id="pv" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#1b2440"></stop>
+                  <stop offset="0.55" stop-color="#2a1b44"></stop>
+                  <stop offset="1" stop-color="#101827"></stop>
+                </linearGradient>
+              </defs>
+              <rect width="640" height="360" fill="url(#pv)"></rect>
+              <g opacity="0.16" stroke="#9fb0d8" stroke-width="1">
+                <path d="M0 90h640M0 180h640M0 270h640M160 0v360M320 0v360M480 0v360"></path>
+              </g>
+              <rect x="34" y="34" width="150" height="26" rx="6" fill="#0b0f17" opacity="0.72"></rect>
+              <circle cx="49" cy="47" r="5" fill="#ef4444"></circle>
+              <text x="62" y="51" fill="#e9edf7" font-family="Inter, sans-serif" font-size="13" font-weight="600">Gameplay</text>
+              <g transform="translate(320 186)">
+                <circle r="44" fill="#0b0f17" opacity="0.55"></circle>
+                <path d="M-14 -20 L22 0 L-14 20 Z" fill="#e9edf7" opacity="0.85"></path>
+              </g>
+              <rect x="430" y="276" width="176" height="52" rx="8" fill="#0b0f17" opacity="0.66"></rect>
+              <text x="444" y="298" fill="#98a2b8" font-family="Inter, sans-serif" font-size="11">Webcam</text>
+              <rect x="444" y="306" width="60" height="8" rx="4" fill="#6d5efc"></rect>
+              <rect x="508" y="306" width="36" height="8" rx="4" fill="#2d3850"></rect>
+            </svg>
+            <div class="badge">
+              <span>Kein Livebild, wird alle 10 Sekunden aktualisiert.</span>
+              <span class="muted">zuletzt: vor 4 s</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid cols-3 mt">
+          <div class="card platform-card twitch">
+            <div class="card-head">
+              <div class="row">
+                <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#9146ff" d="M4.3 2 2.5 6.4v14.3h4.9V24h3.3l3.2-3.3h4.1l5.5-5.5V2H4.3zm15.9 12.1-3.1 3.1h-4.9l-2.7 2.7v-2.7H6.1V4.2h14.1v9.9zM16.9 7v5.4h-1.8V7h1.8zm-4.9 0v5.4h-1.8V7H12z"></path></svg>
+                <h2 style="margin:0">Twitch</h2>
+              </div>
+              <span class="row" style="gap:6px"><span class="dot live"></span><span class="small">Live</span></span>
+            </div>
+            <div class="row between mb">
+              <div class="metric">1.284<small>Zuschauer gesamt</small></div>
+              <div style="text-align:right">
+                <div class="small muted">maxstreamt</div>
+                <div class="small muted">über Anmeldung</div>
+                <div class="small muted">1 h 9 min</div>
+              </div>
+            </div>
+            <div class="row">
+              <button class="ui danger" type="button">Stoppen</button>
+              <button class="ui" type="button">Neu verbinden</button>
+            </div>
+          </div>
+
+          <div class="card platform-card youtube">
+            <div class="card-head">
+              <div class="row">
+                <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ff0033" d="M23 7.5s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.4-1C17.9 4 12 4 12 4s-5.9 0-7.7.2c-.5.1-1.5.1-2.4 1C1.2 5.9 1 7.5 1 7.5S.8 9.4.8 11.3v1.3c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .9 2.5 1 1.8.2 7.6.2 7.6.2s5.9 0 7.7-.2c.5-.1 1.5-.1 2.4-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8v-1.3c0-1.9-.2-3.8-.2-3.8zM9.8 15.2V8.6l6.3 3.3-6.3 3.3z"></path></svg>
+                <h2 style="margin:0">YouTube</h2>
+              </div>
+              <span class="row" style="gap:6px"><span class="dot live"></span><span class="small">Live</span></span>
+            </div>
+            <div class="row between mb">
+              <div class="metric">212<small>Zuschauer gesamt</small></div>
+              <div style="text-align:right">
+                <div class="small muted">Max Spielt</div>
+                <div class="small muted">über Anmeldung</div>
+                <div class="small muted">1 h 9 min</div>
+              </div>
+            </div>
+            <div class="row">
+              <button class="ui danger" type="button">Stoppen</button>
+              <button class="ui" type="button">Neu verbinden</button>
+            </div>
+          </div>
+
+          <div class="card platform-card kick">
+            <div class="card-head">
+              <div class="row">
+                <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#53fc18" d="M3 3h5.4v4.5h2.7V4.8h2.7V3H19v6.3h-2.7v2.7H19V21h-5.2v-1.8h-2.7v-2.7H8.4V21H3V3z"></path></svg>
+                <h2 style="margin:0">Kick</h2>
+              </div>
+              <span class="row" style="gap:6px"><span class="dot warn"></span><span class="small">Verbinde neu …</span></span>
+            </div>
+            <div class="row between mb">
+              <div class="metric">—<small>Zuschauer gesamt</small></div>
+              <div style="text-align:right">
+                <div class="small muted">maxlive</div>
+                <div class="small muted">Key eingetragen</div>
+              </div>
+            </div>
+            <div class="notice warn small mb">Kick: Verbindung verloren, versuche es erneut (2/3).</div>
+            <div class="row">
+              <button class="ui danger" type="button">Stoppen</button>
+              <button class="ui" type="button">Neu verbinden</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2 style="margin:0">Titel &amp; Kategorie</h2></div>
+
+          <div class="suggest-wrap">
+            <div class="field" style="margin-bottom:0">
+              <span class="label">Für alle übernehmen</span>
+              <div class="inp">Freitag-Abend-Runde mit euch</div>
+            </div>
+            <div class="suggest">
+              <div class="suggest-item"><span class="small muted">Zuletzt verwendet</span></div>
+              <div class="suggest-item">
+                <span class="star on"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17.3l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8L12 3.5z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"></path></svg></span>
+                <span>Freitag-Abend-Runde mit euch</span>
+              </div>
+              <div class="suggest-item">
+                <span class="star"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17.3l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8L12 3.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"></path></svg></span>
+                <span>Erstmal wach werden, dann zocken</span>
+              </div>
+              <div class="suggest-item">
+                <span class="star"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17.3l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8L12 3.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"></path></svg></span>
+                <span>Hub-Map bauen bis es klappt</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="check mt" style="margin-top:72px">
+            <span class="box on"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 13 4.5 4.5L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"></path></svg></span>
+            <div>
+              <span class="label">Für alle übernehmen</span>
+              <div class="hint">Eigener Titel pro Plattform</div>
+            </div>
+          </div>
+
+          <div class="row" style="gap:4px">
+            <button class="ui ghost" type="button" style="width:100%;justify-content:flex-start">Twitch <span class="spacer"></span> <span class="small muted">+</span></button>
+          </div>
+          <div class="row" style="gap:4px">
+            <button class="ui ghost" type="button" style="width:100%;justify-content:flex-start">YouTube <span class="spacer"></span> <span class="small muted">−</span></button>
+          </div>
+          <div class="field" style="margin-top:6px">
+            <div class="inp">Freitagabend — familienfreundlich</div>
+          </div>
+
+          <div class="sep"></div>
+
+          <div class="field">
+            <span class="label">Kategorie / Spiel</span>
+            <div class="inp">Unity</div>
+          </div>
+          <div class="notice info small">Bei YouTube lässt sich über die Schnittstelle nur die Rubrik „Gaming" setzen. Das konkrete Spiel musst du bei YouTube selbst eintragen.</div>
+          <button class="ui primary mt" type="button">Übernehmen</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="grid cols-2" style="gap:10px">
+            <div class="metric">1.496<small>Zuschauer gesamt</small></div>
+            <div class="metric">34<small>Nachrichten/Min.</small></div>
+          </div>
+          <div class="sep"></div>
+          <dl class="kv">
+            <dt>Twitch</dt><dd>1.284</dd>
+            <dt>YouTube</dt><dd>212</dd>
+            <dt>Kick</dt><dd>—</dd>
+            <dt>Chatter</dt><dd>97</dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2 style="margin:0">Auffälligkeiten</h2></div>
+          <p class="small">Hinweise, keine Urteile. Jeder Eintrag nennt Zeitpunkt und Rohwerte, damit du ihn bei der Plattform belegen kannst.</p>
+          <div class="notice warn small">
+            <strong>Ungewöhnlicher Anstieg</strong>
+            <div class="muted">21:14 · Twitch · Bewertung 0,82</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2 style="margin:0">Chat</h2>
+            <span class="pill">Nur lesen</span>
+          </div>
+          <div class="chat-list" style="max-height:340px">
+            <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#9146ff" d="M4.3 2 2.5 6.4v14.3h4.9V24h3.3l3.2-3.3h4.1l5.5-5.5V2H4.3zm15.9 12.1-3.1 3.1h-4.9l-2.7 2.7v-2.7H6.1V4.2h14.1v9.9z"></path></svg></span><div><span class="author" style="color:#ff7ac6">LenaStreamt</span><span class="muted">: </span>Moin! Endlich wieder live <span class="emote">PogChamp</span></div></div>
+            <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ff0033" d="M23 7.5s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.4-1C17.9 4 12 4 12 4s-5.9 0-7.7.2c-.5.1-1.5.1-2.4 1C1.2 5.9 1 7.5 1 7.5S.8 9.4.8 11.3v1.3c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .9 2.5 1 1.8.2 7.6.2 7.6.2s5.9 0 7.7-.2c.5-.1 1.5-.1 2.4-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8v-1.3c0-1.9-.2-3.8-.2-3.8zM9.8 15.2V8.6l6.3 3.3-6.3 3.3z"></path></svg></span><div><span class="author" style="color:#7ad1ff">Kalle_1987</span><span class="muted">: </span>Ton ist super heute</div></div>
+            <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#53fc18" d="M3 3h5.4v4.5h2.7V4.8h2.7V3H19v6.3h-2.7v2.7H19V21h-5.2v-1.8h-2.7v-2.7H8.4V21H3V3z"></path></svg></span><div><span class="author" style="color:#53fc18">nachtaktiv</span><span class="muted">: </span>erster Kick-Chat hier, nice</div></div>
+            <div class="chat-msg bot"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#9146ff" d="M4.3 2 2.5 6.4v14.3h4.9V24h3.3l3.2-3.3h4.1l5.5-5.5V2H4.3zm15.9 12.1-3.1 3.1h-4.9l-2.7 2.7v-2.7H6.1V4.2h14.1v9.9z"></path></svg></span><div><span class="author" style="color:#9146ff">Nightbot</span><span class="muted">: </span>Folge dem Kanal für Updates!</div></div>
+            <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#9146ff" d="M4.3 2 2.5 6.4v14.3h4.9V24h3.3l3.2-3.3h4.1l5.5-5.5V2H4.3zm15.9 12.1-3.1 3.1h-4.9l-2.7 2.7v-2.7H6.1V4.2h14.1v9.9z"></path></svg></span><div><span class="author" style="color:#ffd166">Mo</span><span class="muted">: </span>wie hast du das Overlay gemacht? <span class="emote">monkaS</span></div></div>
+            <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ff0033" d="M23 7.5s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.4-1C17.9 4 12 4 12 4s-5.9 0-7.7.2c-.5.1-1.5.1-2.4 1C1.2 5.9 1 7.5 1 7.5S.8 9.4.8 11.3v1.3c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .9 2.5 1 1.8.2 7.6.2 7.6.2s5.9 0 7.7-.2c.5-.1 1.5-.1 2.4-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8v-1.3c0-1.9-.2-3.8-.2-3.8zM9.8 15.2V8.6l6.3 3.3-6.3 3.3z"></path></svg></span><div><span class="author" style="color:#b7c6ea">Sanne</span><span class="muted">: </span>Grüße aus Hamburg</div></div>
+            <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#53fc18" d="M3 3h5.4v4.5h2.7V4.8h2.7V3H19v6.3h-2.7v2.7H19V21h-5.2v-1.8h-2.7v-2.7H8.4V21H3V3z"></path></svg></span><div><span class="author" style="color:#8ef1ff">Tobi</span><span class="muted">: </span>der Umschalter ist echt clever <span class="emote">EZ</span></div></div>
+          </div>
+          <div class="hint">Emotes erscheinen hier als Bilder von Twitch, 7TV, BTTV und FFZ. In dieser Vorschau sind sie als Marke dargestellt.</div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2 style="margin:0">Technische Details</h2></div>
+          <dl class="kv">
+            <dt>Aktive Weiterleitungen</dt><dd>3</dd>
+            <dt>Aktuelle Quelle</dt><dd>obs</dd>
+            <dt>Quellenwechsel</dt><dd>1</dd>
+            <dt>Laufzeit im Strom</dt><dd>1 h 12 min</dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2 style="margin:0">Meldungen</h2></div>
+          <div class="toasts">
+            <div class="toast warn">
+              <div class="t-title">Kick: Verbindung verloren, versuche es erneut (2/3).</div>
+            </div>
+            <div class="toast success">
+              <div class="t-title">Zurück auf dem OBS-Signal.</div>
+            </div>
+            <div class="toast error">
+              <div class="t-title">Kick: Verbindung nach drei Versuchen aufgegeben.</div>
+              <div class="t-detail">rtmps://… Connection reset by peer</div>
+              <button class="ui sm" type="button" style="margin-top:8px">Erneut versuchen</button>
+            </div>
+          </div>
+          <div class="hint">Im Betrieb erscheinen diese Meldungen oben rechts und verschwinden von selbst.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ LOGIN ══════════════════ -->
+  <section id="s-login" hidden>
+    <div class="center-page">
+      <div class="card">
+        <div class="row mb" style="gap:10px">
+          <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="#6d5efc"></rect>
+            <path d="M9 20V12l7 4 7-4v8" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+          <div>
+            <h1 style="margin:0">Castbridge</h1>
+            <div class="small muted">Einmal senden, überall live.</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label">E-Mail</span>
+          <div class="inp">max@example.de</div>
+        </div>
+        <div class="field">
+          <span class="label">Passwort</span>
+          <div class="inp">••••••••••••</div>
+        </div>
+        <button class="ui primary big" type="button">Anmelden</button>
+
+        <div class="sep"></div>
+
+        <div class="field" style="margin-bottom:0">
+          <span class="label">Sprache</span>
+          <div class="inp">Deutsch</div>
+        </div>
+        <p class="hint" style="margin-top:14px">Es gibt keine offene Registrierung. Neue Konten entstehen nur über einen Einladungslink.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ EINRICHTUNG ══════════════════ -->
+  <section id="s-wizard" hidden>
+    <div class="page-head">
+      <div>
+        <h1>Einrichtung</h1>
+        <p style="margin-bottom:0">Vier Schritte, dann läuft es. Du kannst alles später in den Einstellungen ändern.</p>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step done"><b>✓ Leitung messen</b></div>
+      <div class="step done"><b>✓ Plattformen verbinden</b></div>
+      <div class="step active"><b>3. OBS einrichten</b></div>
+      <div class="step"><b>4. Chat-Overlay</b></div>
+    </div>
+
+    <div class="dash">
+      <div class="card">
+        <div class="card-head"><h2 style="margin:0">OBS einrichten</h2></div>
+        <p>In OBS: Einstellungen → Stream → Dienst „Benutzerdefiniert".</p>
+
+        <div class="field">
+          <span class="label">Server</span>
+          <div class="copy-row">
+            <div class="inp mono">rtmp://stream.example.de:1935/live</div>
+            <button class="ui primary nowrap" type="button">Kopieren</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label">Stream-Schlüssel</span>
+          <div class="copy-row">
+            <div class="inp mono">••••••••-••••••••-••••••••</div>
+            <button class="ui nowrap" type="button">Anzeigen</button>
+            <button class="ui primary nowrap" type="button">Kopieren</button>
+          </div>
+          <div class="hint">Diesen Schlüssel niemals im Stream zeigen.</div>
+        </div>
+
+        <div class="field">
+          <span class="label">SRT (für wackelige Leitungen)</span>
+          <div class="copy-row">
+            <div class="inp mono">srt://stream.example.de:8890?streamid=publish:live/…</div>
+            <button class="ui primary nowrap" type="button">Kopieren</button>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <h3>Empfohlene Werte</h3>
+        <dl class="kv">
+          <dt>Video-Bitrate</dt><dd>6.000 kbps</dd>
+          <dt>Audio-Bitrate</dt><dd>160 kbps</dd>
+          <dt>Keyframe-Abstand</dt><dd>2 s</dd>
+          <dt>Bitratensteuerung</dt><dd>CBR</dd>
+          <dt>Codec</dt><dd>H.264</dd>
+        </dl>
+
+        <div class="sep"></div>
+        <button class="ui ghost sm" type="button">Neuen Ingest-Key erzeugen</button>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-head"><h2 style="margin:0">Upload messen</h2></div>
+          <div class="notice ok">
+            <div><strong>Dein Upload: 24,8 Mbit/s</strong></div>
+            <div>Empfohlene Bitrate in OBS: 6.000 kbps</div>
+            <div class="hint">Deine Leitung gibt mehr her, aber Twitch nimmt bei H.264 nur etwa 6000 kbps an. Darüber lehnt Twitch ab.</div>
+          </div>
+          <button class="ui mt" type="button">Nochmal messen</button>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2 style="margin:0">Verbunden</h2></div>
+          <div class="row" style="gap:6px">
+            <span class="pill ok">Twitch</span>
+            <span class="pill ok">YouTube</span>
+            <span class="pill">Kick offen</span>
+          </div>
+          <div class="hint">Kick lässt sich auch später verbinden, der Assistent wartet nicht darauf.</div>
+        </div>
+
+        <div class="card">
+          <div class="row">
+            <button class="ui" type="button">Zurück</button>
+            <button class="ui primary" type="button">Weiter</button>
+            <button class="ui ghost" type="button">Schritt überspringen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ EINSTELLUNGEN ══════════════════ -->
+  <section id="s-settings" hidden>
+    <div class="page-head">
+      <h1>Einstellungen</h1>
+      <span class="pill ok">Gespeichert</span>
+    </div>
+
+    <h2 class="mb">Plattformen</h2>
+    <div class="grid cols-3">
+      <div class="card platform-card twitch">
+        <div class="card-head">
+          <div class="row">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#9146ff" d="M4.3 2 2.5 6.4v14.3h4.9V24h3.3l3.2-3.3h4.1l5.5-5.5V2H4.3zm15.9 12.1-3.1 3.1h-4.9l-2.7 2.7v-2.7H6.1V4.2h14.1v9.9z"></path></svg>
+            <h2 style="margin:0">Twitch</h2>
+          </div>
+          <span class="pill ok">Verbunden</span>
+        </div>
+        <dl class="kv mb">
+          <dt>Kanalname</dt><dd>maxstreamt</dd>
+          <dt>Art</dt><dd>über Anmeldung</dd>
+        </dl>
+        <div class="caps mb">Was hier geht</div>
+        <div class="small" style="color:var(--text-dim);line-height:1.9">
+          <div>✓ Titel setzen</div>
+          <div>✓ Kategorie setzen</div>
+          <div>✓ Chat lesen</div>
+          <div>✓ Zuschauerzahl</div>
+          <div>✓ Stream-Key automatisch</div>
+        </div>
+        <div class="row mt">
+          <button class="ui primary" type="button">Mit Twitch verbinden</button>
+          <button class="ui danger" type="button">Verbindung lösen</button>
+        </div>
+      </div>
+
+      <div class="card platform-card youtube">
+        <div class="card-head">
+          <div class="row">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ff0033" d="M23 7.5s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.4-1C17.9 4 12 4 12 4s-5.9 0-7.7.2c-.5.1-1.5.1-2.4 1C1.2 5.9 1 7.5 1 7.5S.8 9.4.8 11.3v1.3c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .9 2.5 1 1.8.2 7.6.2 7.6.2s5.9 0 7.7-.2c.5-.1 1.5-.1 2.4-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8v-1.3c0-1.9-.2-3.8-.2-3.8zM9.8 15.2V8.6l6.3 3.3-6.3 3.3z"></path></svg>
+            <h2 style="margin:0">YouTube</h2>
+          </div>
+          <span class="pill ok">Verbunden</span>
+        </div>
+        <div class="caps mb">Was hier geht</div>
+        <div class="small" style="color:var(--text-dim);line-height:1.9">
+          <div>✓ Titel setzen</div>
+          <div>✓ Kategorie setzen <span class="muted">— nur Rubrik „Gaming"</span></div>
+          <div>✓ Chat lesen</div>
+          <div>✓ Zuschauerzahl</div>
+          <div>✓ Stream-Key automatisch</div>
+        </div>
+        <div class="notice info small mt">Google zeigt bei nicht geprüften Apps einen Warnbildschirm. Dort auf „Erweitert" und dann „Trotzdem fortfahren" klicken. Für einen kleinen Kreis ist das völlig in Ordnung.</div>
+      </div>
+
+      <div class="card platform-card kick">
+        <div class="card-head">
+          <div class="row">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#53fc18" d="M3 3h5.4v4.5h2.7V4.8h2.7V3H19v6.3h-2.7v2.7H19V21h-5.2v-1.8h-2.7v-2.7H8.4V21H3V3z"></path></svg>
+            <h2 style="margin:0">Kick</h2>
+          </div>
+          <span class="pill">Nicht verbunden</span>
+        </div>
+        <div class="caps mb">Was hier geht</div>
+        <div class="small" style="color:var(--text-faint);line-height:1.9">
+          <div>✗ Titel setzen</div>
+          <div>✗ Kategorie setzen</div>
+          <div>✗ Chat lesen</div>
+          <div>✗ Zuschauerzahl</div>
+          <div>✗ Stream-Key automatisch</div>
+        </div>
+        <div class="notice info small mt">Ob Kick den Stream-Key über die Schnittstelle herausgibt, hängt an den Rechten deiner App. Klappt es nicht, trage ihn einmal von Hand ein.</div>
+
+        <button class="ui ghost sm mt" type="button">Oder Key manuell eintragen −</button>
+
+        <div class="notice small mt">
+          <ol style="margin:0 0 6px 18px;padding:0">
+            <li style="margin-bottom:3px">Kick-Dashboard öffnen</li>
+            <li style="margin-bottom:3px">Settings → Stream</li>
+            <li>Stream-URL und Stream-Key kopieren (Kick verlangt RTMPS)</li>
+          </ol>
+          <a href="https://kick.com/dashboard/settings/stream">kick.com/dashboard/settings/stream</a>
+        </div>
+
+        <div class="field mt">
+          <span class="label">Server-URL</span>
+          <div class="inp mono">rtmps://fa723fc1b171.global-contribute.live-video.net:443/app</div>
+          <div class="hint">Kick verlangt RTMPS. Die Server-URL muss mit rtmps:// beginnen.</div>
+        </div>
+        <div class="field">
+          <span class="label">Stream-Key</span>
+          <div class="inp mono">••••••••••••••••••••••••••</div>
+        </div>
+        <div class="field">
+          <span class="label">Kanalname <span class="muted small">(optional)</span></span>
+          <div class="inp ph">maxlive</div>
+        </div>
+        <button class="ui primary" type="button">Speichern</button>
+      </div>
+    </div>
+
+    <div class="dash mt">
+      <div>
+        <div class="card">
+          <div class="card-head"><h2 style="margin:0">Ersatzbild bei Verbindungsabbruch</h2></div>
+          <p>Fällt OBS weg, läuft das Ersatzmedium weiter, damit die Plattformen verbunden bleiben. Nur in dieser Zeit kodiert der Server.</p>
+          <div class="check">
+            <span class="box on"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 13 4.5 4.5L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"></path></svg></span>
+            <div><span class="label">Bei Ausfall mit Ersatzbild überbrücken</span></div>
+          </div>
+          <div class="notice small mb">Aktuell: gleich-gehts-weiter.png</div>
+          <div class="row">
+            <button class="ui primary" type="button">Bild oder Video hochladen</button>
+            <button class="ui danger" type="button">Auf Standardbild zurücksetzen</button>
+          </div>
+          <div class="hint">PNG, JPG, WEBP, MP4, MOV, MKV oder WEBM. Videos bis 10 Minuten.</div>
+          <div class="hint">Die Datei wird beim ersten Ausfall einmalig passend zu deinen OBS-Einstellungen aufbereitet.</div>
+          <div class="notice warn small mt">Keine YouTube- oder VOD-Links: Herunterladen verstößt gegen die Bedingungen und fremdes Material bringt Copyright-Ärger.</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-head"><h2 style="margin:0">Allgemein</h2></div>
+          <div class="field">
+            <span class="label">Sprache</span>
+            <div class="inp">Deutsch</div>
+          </div>
+          <div class="field">
+            <span class="label">Bitrate-Vorgabe</span>
+            <div class="inp">6000</div>
+            <div class="hint">Nur als Merkposten und für Warnungen. Eingestellt wird die Bitrate in OBS, der Server kodiert nicht neu.</div>
+          </div>
+          <div class="field">
+            <span class="label">Sichtbarkeit neuer YouTube-Sendungen</span>
+            <div class="inp">Öffentlich</div>
+          </div>
+          <div class="check" style="margin-bottom:0">
+            <span class="box"></span>
+            <div>
+              <span class="label">Bots ausblenden</span>
+              <div class="hint">Blendet bekannte Bots aus: Nightbot, StreamElements, Streamlabs, Moobot, Fossabot und weitere.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2 style="margin:0">Passwort ändern</h2></div>
+          <div class="field">
+            <span class="label">Aktuelles Passwort</span>
+            <div class="inp">••••••••••</div>
+          </div>
+          <div class="field">
+            <span class="label">Neues Passwort</span>
+            <div class="inp">••••••••••••</div>
+            <div class="hint">Mindestens 10 Zeichen.</div>
+          </div>
+          <button class="ui primary" type="button">Speichern</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ CHAT ══════════════════ -->
+  <section id="s-chat" hidden>
+    <div class="page-head">
+      <div>
+        <h1>Chat</h1>
+        <div class="small muted">Nur lesen. Schreiben und moderieren geht aus dem Tool bewusst nicht.</div>
+      </div>
+      <div class="row">
+        <span class="pill ok">Twitch</span>
+        <span class="pill ok">YouTube</span>
+        <span class="pill ok">Kick</span>
+      </div>
+    </div>
+
+    <div class="dash">
+      <div class="card">
+        <div class="chat-list" style="max-height:520px">
+          <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#9146ff" d="M4.3 2 2.5 6.4v14.3h4.9V24h3.3l3.2-3.3h4.1l5.5-5.5V2H4.3zm15.9 12.1-3.1 3.1h-4.9l-2.7 2.7v-2.7H6.1V4.2h14.1v9.9z"></path></svg></span><div><span class="muted small mono" style="margin-right:6px">21:08</span><span class="author" style="color:#ff7ac6">LenaStreamt</span><span class="muted">: </span>Moin! Endlich wieder live <span class="emote">PogChamp</span></div></div>
+          <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ff0033" d="M23 7.5s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.4-1C17.9 4 12 4 12 4s-5.9 0-7.7.2c-.5.1-1.5.1-2.4 1C1.2 5.9 1 7.5 1 7.5S.8 9.4.8 11.3v1.3c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .9 2.5 1 1.8.2 7.6.2 7.6.2s5.9 0 7.7-.2c.5-.1 1.5-.1 2.4-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8v-1.3c0-1.9-.2-3.8-.2-3.8zM9.8 15.2V8.6l6.3 3.3-6.3 3.3z"></path></svg></span><div><span class="muted small mono" style="margin-right:6px">21:08</span><span class="author" style="color:#7ad1ff">Kalle_1987</span><span class="muted">: </span>Ton ist super heute</div></div>
+          <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#53fc18" d="M3 3h5.4v4.5h2.7V4.8h2.7V3H19v6.3h-2.7v2.7H19V21h-5.2v-1.8h-2.7v-2.7H8.4V21H3V3z"></path></svg></span><div><span class="muted small mono" style="margin-right:6px">21:09</span><span class="author" style="color:#53fc18">nachtaktiv</span><span class="muted">: </span>erster Kick-Chat hier, nice <span class="emote">KEKW</span></div></div>
+          <div class="chat-msg bot"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#9146ff" d="M4.3 2 2.5 6.4v14.3h4.9V24h3.3l3.2-3.3h4.1l5.5-5.5V2H4.3zm15.9 12.1-3.1 3.1h-4.9l-2.7 2.7v-2.7H6.1V4.2h14.1v9.9z"></path></svg></span><div><span class="muted small mono" style="margin-right:6px">21:10</span><span class="author" style="color:#9146ff">Nightbot</span><span class="muted">: </span>Folge dem Kanal für Updates!</div></div>
+          <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#9146ff" d="M4.3 2 2.5 6.4v14.3h4.9V24h3.3l3.2-3.3h4.1l5.5-5.5V2H4.3zm15.9 12.1-3.1 3.1h-4.9l-2.7 2.7v-2.7H6.1V4.2h14.1v9.9z"></path></svg></span><div><span class="muted small mono" style="margin-right:6px">21:11</span><span class="author" style="color:#ffd166">Mo</span><span class="muted">: </span>wie hast du das Overlay gemacht?</div></div>
+          <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ff0033" d="M23 7.5s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.4-1C17.9 4 12 4 12 4s-5.9 0-7.7.2c-.5.1-1.5.1-2.4 1C1.2 5.9 1 7.5 1 7.5S.8 9.4.8 11.3v1.3c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .9 2.5 1 1.8.2 7.6.2 7.6.2s5.9 0 7.7-.2c.5-.1 1.5-.1 2.4-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8v-1.3c0-1.9-.2-3.8-.2-3.8zM9.8 15.2V8.6l6.3 3.3-6.3 3.3z"></path></svg></span><div><span class="muted small mono" style="margin-right:6px">21:11</span><span class="author" style="color:#b7c6ea">Sanne</span><span class="muted">: </span>Grüße aus Hamburg</div></div>
+          <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#53fc18" d="M3 3h5.4v4.5h2.7V4.8h2.7V3H19v6.3h-2.7v2.7H19V21h-5.2v-1.8h-2.7v-2.7H8.4V21H3V3z"></path></svg></span><div><span class="muted small mono" style="margin-right:6px">21:12</span><span class="author" style="color:#8ef1ff">Tobi</span><span class="muted">: </span>läuft bei dir</div></div>
+          <div class="chat-msg"><span class="pico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#9146ff" d="M4.3 2 2.5 6.4v14.3h4.9V24h3.3l3.2-3.3h4.1l5.5-5.5V2H4.3zm15.9 12.1-3.1 3.1h-4.9l-2.7 2.7v-2.7H6.1V4.2h14.1v9.9z"></path></svg></span><div><span class="muted small mono" style="margin-right:6px">21:13</span><span class="author" style="color:#c792ea">pixelhase</span><span class="muted">: </span>Der Umschalter ist echt clever <span class="emote">PepeLaugh</span></div></div>
+        </div>
+        <div class="hint">Von Mods gelöschte Nachrichten verschwinden hier und im Overlay. Bei Timeouts und Bans werden alle Nachrichten des Nutzers entfernt.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2 style="margin:0">Bots ausblenden</h2>
+          <span class="pill ok">Gespeichert</span>
+        </div>
+        <div class="check">
+          <span class="box"></span>
+          <div>
+            <span class="label">Bots ausblenden</span>
+            <div class="hint">Blendet bekannte Bots aus: Nightbot, StreamElements, Streamlabs, Moobot, Fossabot und weitere.</div>
+          </div>
+        </div>
+        <button class="ui ghost sm" type="button">Bekannte Bots anzeigen +</button>
+        <div class="sep"></div>
+        <div class="field">
+          <span class="label">Eigene Bot-Namen</span>
+          <div class="inp mono" style="min-height:92px;padding-top:9px">meinhelfer<br>raidalarm</div>
+          <div class="hint">Ein Name pro Zeile. Groß- und Kleinschreibung ist egal.</div>
+        </div>
+        <button class="ui primary" type="button">Speichern</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ OVERLAY ══════════════════ -->
+  <section id="s-overlay" hidden>
+    <div class="page-head">
+      <h1>Chat-Overlay</h1>
+      <div class="row">
+        <span class="pill ok">Gespeichert</span>
+        <button class="ui primary" type="button">Speichern</button>
+      </div>
+    </div>
+
+    <div class="dash">
+      <div>
+        <div class="card">
+          <div class="card-head">
+            <h2 style="margin:0">Live-Vorschau</h2>
+            <span class="pill">Beispielnachrichten</span>
+          </div>
+          <div class="overlay-preview">
+            <div class="overlay-msg"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="margin-top:3px;flex:none"><path fill="#9146ff" d="M4.3 2 2.5 6.4v14.3h4.9V24h3.3l3.2-3.3h4.1l5.5-5.5V2H4.3zm15.9 12.1-3.1 3.1h-4.9l-2.7 2.7v-2.7H6.1V4.2h14.1v9.9z"></path></svg><span><strong style="color:#ff7ac6;margin-right:6px">LenaStreamt</strong>Moin! Endlich wieder live</span></div>
+            <div class="overlay-msg"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="margin-top:3px;flex:none"><path fill="#ff0033" d="M23 7.5s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.4-1C17.9 4 12 4 12 4s-5.9 0-7.7.2c-.5.1-1.5.1-2.4 1C1.2 5.9 1 7.5 1 7.5S.8 9.4.8 11.3v1.3c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .9 2.5 1 1.8.2 7.6.2 7.6.2s5.9 0 7.7-.2c.5-.1 1.5-.1 2.4-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8v-1.3c0-1.9-.2-3.8-.2-3.8zM9.8 15.2V8.6l6.3 3.3-6.3 3.3z"></path></svg><span><strong style="color:#7ad1ff;margin-right:6px">Kalle_1987</strong>Ton ist super heute</span></div>
+            <div class="overlay-msg"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="margin-top:3px;flex:none"><path fill="#53fc18" d="M3 3h5.4v4.5h2.7V4.8h2.7V3H19v6.3h-2.7v2.7H19V21h-5.2v-1.8h-2.7v-2.7H8.4V21H3V3z"></path></svg><span><strong style="color:#53fc18;margin-right:6px">nachtaktiv</strong>erster Kick-Chat hier, nice</span></div>
+            <div class="overlay-msg"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="margin-top:3px;flex:none"><path fill="#9146ff" d="M4.3 2 2.5 6.4v14.3h4.9V24h3.3l3.2-3.3h4.1l5.5-5.5V2H4.3zm15.9 12.1-3.1 3.1h-4.9l-2.7 2.7v-2.7H6.1V4.2h14.1v9.9z"></path></svg><span><strong style="color:#ffd166;margin-right:6px">Mo</strong>wie hast du das Overlay gemacht? <span class="emote">monkaS</span></span></div>
+          </div>
+          <div class="hint">Das Schachbrett zeigt die Durchsichtigkeit. In OBS liegt dort dein Spiel.</div>
+        </div>
+
+        <div class="card">
+          <div class="field">
+            <span class="label">Overlay-URL für OBS</span>
+            <div class="copy-row">
+              <div class="inp mono">••••••••••••••••••••••••••••••••</div>
+              <button class="ui nowrap" type="button">Anzeigen</button>
+              <button class="ui primary nowrap" type="button">Kopieren</button>
+            </div>
+            <div class="hint">In OBS eine Browserquelle anlegen und diese URL einsetzen. Breite 420, Höhe 700 passt gut. Die URL enthält ein Geheimnis — nicht im Stream zeigen.</div>
+          </div>
+          <button class="ui" type="button">Neue URL erzeugen</button>
+          <div class="hint">Die alte URL hört dann auf zu funktionieren. Danach in OBS die Quelle aktualisieren.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Aussehen</h2>
+
+        <div class="field">
+          <span class="label">Schriftart</span>
+          <div class="inp">Inter</div>
+        </div>
+
+        <div class="field">
+          <span class="label">Schriftgröße: 22 px</span>
+          <div class="range"><i style="width:30%"></i><b style="left:30%"></b></div>
+        </div>
+
+        <div class="field">
+          <span class="label">Anzeigedauer: dauerhaft</span>
+          <div class="range"><i style="width:0%"></i><b style="left:0%"></b></div>
+        </div>
+
+        <div class="field">
+          <span class="label">Höchstzahl Nachrichten: 20</span>
+          <div class="range"><i style="width:33%"></i><b style="left:33%"></b></div>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="check">
+          <span class="box on"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 13 4.5 4.5L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"></path></svg></span>
+          <div><span class="label">Hintergrund durchsichtig</span></div>
+        </div>
+        <div class="check">
+          <span class="box on"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 13 4.5 4.5L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"></path></svg></span>
+          <div><span class="label">Plattform-Symbole zeigen</span></div>
+        </div>
+        <div class="check">
+          <span class="box on"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 13 4.5 4.5L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"></path></svg></span>
+          <div><span class="label">Namen in Nutzerfarbe</span></div>
+        </div>
+        <div class="check">
+          <span class="box on"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 13 4.5 4.5L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"></path></svg></span>
+          <div><span class="label">Schatten für bessere Lesbarkeit</span></div>
+        </div>
+        <div class="check">
+          <span class="box"></span>
+          <div><span class="label">Bots ausblenden</span></div>
+        </div>
+
+        <div class="field">
+          <span class="label">Richtung</span>
+          <div class="inp">Neue unten</div>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <span class="label">Einblenden</span>
+          <div class="inp">weich</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ STATISTIK ══════════════════ -->
+  <section id="s-stats" hidden>
+    <div class="page-head">
+      <h1>Statistiken</h1>
+      <div class="row">
+        <button class="ui" type="button">CSV (Excel)</button>
+        <button class="ui primary" type="button">PDF-Bericht</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <button class="ui primary" type="button">Zeitraum</button>
+        <button class="ui" type="button">Einzelner Stream</button>
+        <span class="spacer"></span>
+        <button class="ui" type="button">Aktualisieren</button>
+      </div>
+      <div class="sep"></div>
+      <div class="grid cols-2">
+        <div class="field" style="margin-bottom:0">
+          <span class="label">Von</span>
+          <div class="inp">09.10.2026</div>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <span class="label">Bis</span>
+          <div class="inp">08.11.2026</div>
+        </div>
+      </div>
+      <div class="hint">Daten entstehen nur, wenn über Castbridge gestreamt wird. Ältere Streams lassen sich nicht nachträglich auswerten.</div>
+    </div>
+
+    <div class="grid cols-3 mt">
+      <div class="card"><div class="metric">18 h 40 min<small>Streamdauer</small></div></div>
+      <div class="card"><div class="metric">1.743<small>Peak</small></div></div>
+      <div class="card"><div class="metric">1.108<small>Durchschnitt</small></div></div>
+      <div class="card"><div class="metric">24.916<small>Nachrichten · 22,2 pro Minute</small></div></div>
+      <div class="card"><div class="metric">1.452<small>Chatter</small></div></div>
+      <div class="card"><div class="metric">163<small>Abos</small></div></div>
+    </div>
+
+    <div class="card mt">
+      <div class="card-head">
+        <h2 style="margin:0">Zuschauer im Verlauf</h2>
+        <span class="small muted">09.10.2026 – 08.11.2026</span>
+      </div>
+      <svg class="chart" viewBox="0 0 760 240" role="img" aria-label="Zuschauerverlauf je Plattform">
+        <g stroke="#212a3a" stroke-width="1">
+          <line x1="44" x2="748" y1="12" y2="12" stroke-dasharray="3 4"></line>
+          <line x1="44" x2="748" y1="63" y2="63" stroke-dasharray="3 4"></line>
+          <line x1="44" x2="748" y1="114" y2="114" stroke-dasharray="3 4"></line>
+          <line x1="44" x2="748" y1="165" y2="165" stroke-dasharray="3 4"></line>
+          <line x1="44" x2="748" y1="216" y2="216"></line>
+        </g>
+        <g fill="#6b7489" font-family="Inter, sans-serif" font-size="10.5" text-anchor="end">
+          <text x="36" y="16">1400</text>
+          <text x="36" y="67">1050</text>
+          <text x="36" y="118">700</text>
+          <text x="36" y="169">350</text>
+          <text x="36" y="220">0</text>
+        </g>
+
+        <line x1="430" x2="430" y1="12" y2="216" stroke="#f97316" stroke-width="1.2" stroke-dasharray="3 3"></line>
+        <line x1="604" x2="604" y1="12" y2="216" stroke="#f97316" stroke-width="1.2" stroke-dasharray="3 3"></line>
+
+        <path d="M44,198 L92,171 L140,152 L188,130 L236,141 L284,112 L332,96 L380,104 L430,42 L478,47 L526,60 L574,74 L604,69 L652,88 L700,101 L748,116"
+              fill="none" stroke="#9146ff" stroke-width="2" stroke-linejoin="round"></path>
+        <path d="M44,210 L92,205 L140,201 L188,196 L236,199 L284,191 L332,188 L380,190 L430,180 L478,178 L526,182 L574,186 L604,184 L652,188 L700,192 L748,195"
+              fill="none" stroke="#ff0033" stroke-width="2" stroke-linejoin="round"></path>
+        <path d="M44,214 L92,212 L140,209 L188,207 L236,210 L284,205 L332,203 L380,204 L430,200 L478,198 L526,201 L574,204 L604,203 L652,206 L700,208 L748,210"
+              fill="none" stroke="#53fc18" stroke-width="2" stroke-linejoin="round"></path>
+
+        <circle cx="430" cy="42" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
+        <circle cx="478" cy="47" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
+        <circle cx="526" cy="60" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
+
+        <text x="44" y="233" fill="#6b7489" font-family="Inter, sans-serif" font-size="10.5">09.10.</text>
+        <text x="748" y="233" fill="#6b7489" font-family="Inter, sans-serif" font-size="10.5" text-anchor="end">08.11.</text>
+      </svg>
+      <div class="chart-legend">
+        <span><i style="background:#9146ff"></i>Twitch</span>
+        <span><i style="background:#ff0033"></i>YouTube</span>
+        <span><i style="background:#53fc18"></i>Kick</span>
+        <span><i style="background:#f59e0b;border-radius:50%"></i>simuliert</span>
+        <span><i style="background:#f97316"></i>Auffälligkeit</span>
+      </div>
+      <div class="notice warn small mt">Dieser Zeitraum enthält simulierte Zuschauerdaten. Sie sind orange markiert.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2 style="margin:0">Pro Plattform</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Plattform</th><th>Peak</th><th>Durchschnitt</th><th>Messpunkte</th></tr></thead>
+          <tbody>
+            <tr><td><span class="row" style="gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:#9146ff;display:inline-block"></i>Twitch</span></td><td>1.284</td><td>842</td><td>1.120 <span class="muted small">(45 sim.)</span></td></tr>
+            <tr><td><span class="row" style="gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:#ff0033;display:inline-block"></i>YouTube</span></td><td>318</td><td>201</td><td>1.120</td></tr>
+            <tr><td><span class="row" style="gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:#53fc18;display:inline-block"></i>Kick</span></td><td>141</td><td>65</td><td>986</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>Ereignisse</h2>
+        <dl class="kv">
+          <dt>Abos</dt><dd>118</dd>
+          <dt>Wiederholte Abos</dt><dd>45</dd>
+          <dt>Geschenkte Abos</dt><dd>27</dd>
+          <dt>Follows</dt><dd>612</dd>
+          <dt>Raids</dt><dd>4</dd>
+          <dt>YouTube-Mitgliedschaften</dt><dd>9</dd>
+          <dt>Super Chats</dt><dd>14 (86,40)</dd>
+        </dl>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2 style="margin:0">Auffälligkeiten</h2></div>
+        <p class="small">Hinweise, keine Urteile. Jeder Eintrag nennt Zeitpunkt und Rohwerte, damit du ihn bei der Plattform belegen kannst.</p>
+        <div class="notice warn small" style="margin-bottom:7px">
+          <div class="row between"><strong>Ungewöhnlicher Anstieg</strong><span class="pill">gemessen</span></div>
+          <div class="muted">21:14 · Twitch · Bewertung 0,82</div>
+          <div class="mono small muted" style="margin-top:4px">from: 243 · to: 1187 · delta: 944 · raid: false</div>
+        </div>
+        <div class="notice warn small" style="margin-bottom:7px">
+          <div class="row between"><strong>Wenige Chatter für diese Zuschauerzahl</strong><span class="pill">gemessen</span></div>
+          <div class="muted">21:29 · Twitch · Bewertung 0,71</div>
+          <div class="mono small muted" style="margin-top:4px">averageViewers: 1184 · averageChatters: 3,2 · ratio: 0,0027</div>
+        </div>
+        <div class="notice warn small">
+          <div class="row between"><strong>Auffällig glatte Kurve</strong><span class="pill sim">aus Simulation</span></div>
+          <div class="muted">02.11., 18:40 · Twitch · Bewertung 0,94</div>
+          <div class="mono small muted" style="margin-top:4px">windowSamples: 10 · average: 341 · stdDev: 0,4</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ ADMIN ══════════════════ -->
+  <section id="s-admin" hidden>
+    <div class="page-head">
+      <h1>Admin</h1>
+      <div class="row">
+        <button class="ui" type="button">Überblick</button>
+        <button class="ui" type="button">Nutzer</button>
+        <button class="ui" type="button">Einladungen</button>
+        <button class="ui primary" type="button">Viewbot-Simulator</button>
+        <button class="ui" type="button">Protokoll</button>
+      </div>
+    </div>
+
+    <div class="grid cols-3 mb">
+      <div class="card"><div class="metric">2 / 3<small>Läuft gerade</small></div></div>
+      <div class="card"><div class="metric">4<small>Nutzer</small></div></div>
+      <div class="card"><div class="metric">412,8 GB<small>Traffic diesen Monat · geschätzt aus Laufzeit und Bitrate</small></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2 style="margin:0">Läuft gerade</h2>
+        <button class="ui ghost sm" type="button">Aktualisieren</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>E-Mail</th><th>Bitrate</th><th>Auflösung</th><th>Plattformen</th><th>Quelle</th><th>Nachr./Min.</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>max@example.de <span class="pill sim" style="margin-left:6px">SIM</span></td>
+              <td>5.840 kbps</td><td>1920×1080</td>
+              <td>Twitch (Live), YouTube (Live), Kick (Verbinde neu …)</td>
+              <td>obs</td><td>34</td>
+            </tr>
+            <tr>
+              <td>jana@example.de</td>
+              <td>4.500 kbps</td><td>1280×720</td>
+              <td>Twitch (Live)</td>
+              <td>standby</td><td>6</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="dash mt">
+      <div class="card">
+        <h2>Server</h2>
+        <dl class="kv">
+          <dt>Prozessorlast</dt><dd>0,42 / 0,38 / 0,31 (4 Kerne)</dd>
+          <dt>Arbeitsspeicher</dt><dd>2,1 GB / 7,8 GB</dd>
+          <dt>Speicherplatz</dt><dd>18,4 GB / 76,0 GB</dd>
+          <dt>Laufzeit</dt><dd>6 h 14 min</dd>
+          <dt>Netz rx / tx</dt><dd>186 GB / 402 GB</dd>
+        </dl>
+      </div>
+
+      <div class="card">
+        <h2>Limit gleichzeitiger Streams</h2>
+        <div class="field">
+          <span class="label">Limit gleichzeitiger Streams: 3</span>
+          <div class="range"><i style="width:16%"></i><b style="left:16%"></b></div>
+          <div class="hint">Schützt den Server. Darüber hinaus werden neue Sender abgewiesen.</div>
+        </div>
+        <button class="ui primary" type="button">Speichern</button>
+      </div>
+    </div>
+
+    <div class="card mt">
+      <div class="card-head">
+        <h2 style="margin:0">Viewbot-Simulator &amp; Erkennungstest</h2>
+      </div>
+      <p>Erzeugt synthetische Zuschauerkurven und lässt denselben Detektor darüber laufen, der auch echte Streams prüft. So siehst du, welche Botting-Muster erkannt werden und welche durchrutschen, und kannst die Schwellen danach einstellen.</p>
+      <div class="notice info small mb">Simulierte Werte werden in der Datenbank als synthetisch geführt und in Diagrammen und Exporten gekennzeichnet. Der Simulator beschickt nur die eigene Statistik und sendet keinen Verkehr an Twitch, YouTube oder Kick.</div>
+
+      <div class="grid cols-2">
+        <div class="field">
+          <span class="label">Szenario</span>
+          <div class="inp">Plötzlicher Sprung</div>
+          <div class="hint">Zuschauerzahl springt ohne Raid innerhalb einer Minute nach oben.<br><strong>Erwartet:</strong> Ungewöhnlicher Anstieg</div>
+        </div>
+        <div class="field">
+          <span class="label">Für welches Konto</span>
+          <div class="inp">max@example.de</div>
+        </div>
+        <div class="field">
+          <span class="label">Plattform</span>
+          <div class="inp">Twitch</div>
+        </div>
+        <div class="field">
+          <span class="label">Betriebsart</span>
+          <div class="inp">Durchrechnen (eigene Test-Sitzung)</div>
+        </div>
+        <div class="field">
+          <span class="label">Organische Zuschauer: 40</span>
+          <div class="range"><i style="width:2%"></i><b style="left:2%"></b></div>
+        </div>
+        <div class="field">
+          <span class="label">Künstlicher Aufschlag: 300</span>
+          <div class="range"><i style="width:15%"></i><b style="left:15%"></b></div>
+        </div>
+        <div class="field">
+          <span class="label">Dauer in Minuten: 45</span>
+          <div class="range"><i style="width:12%"></i><b style="left:12%"></b></div>
+        </div>
+        <div class="field">
+          <span class="label">Chatter-Anteil organisch: 6,0 %</span>
+          <div class="range"><i style="width:20%"></i><b style="left:20%"></b></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="ui primary" type="button">Test starten</button>
+        <span class="spacer"></span>
+        <button class="ui ghost sm" type="button">Aktuelle Schwellen +</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2 style="margin:0">Ergebnis: Erkannt</h2>
+        <span class="pill ok">Plötzlicher Sprung</span>
+      </div>
+      <div class="notice ok mb">Die Erkennung hat das Muster gefunden.</div>
+
+      <div class="grid cols-2 mb">
+        <div>
+          <div class="small muted">Erwartet</div>
+          <div>Ungewöhnlicher Anstieg</div>
+        </div>
+        <div>
+          <div class="small muted">Erkannt</div>
+          <div>Ungewöhnlicher Anstieg, Auffällig glatte Kurve</div>
+        </div>
+      </div>
+
+      <h3>Erzeugte Kurve</h3>
+      <svg class="chart" viewBox="0 0 760 200" role="img" aria-label="Simulierte Zuschauerkurve mit Chattern">
+        <g stroke="#212a3a" stroke-width="1">
+          <line x1="44" x2="748" y1="12" y2="12" stroke-dasharray="3 4"></line>
+          <line x1="44" x2="748" y1="55" y2="55" stroke-dasharray="3 4"></line>
+          <line x1="44" x2="748" y1="98" y2="98" stroke-dasharray="3 4"></line>
+          <line x1="44" x2="748" y1="141" y2="141" stroke-dasharray="3 4"></line>
+          <line x1="44" x2="748" y1="184" y2="184"></line>
+        </g>
+        <g fill="#6b7489" font-family="Inter, sans-serif" font-size="10.5" text-anchor="end">
+          <text x="36" y="16">400</text>
+          <text x="36" y="59">300</text>
+          <text x="36" y="102">200</text>
+          <text x="36" y="145">100</text>
+          <text x="36" y="188">0</text>
+        </g>
+
+        <line x1="290" x2="290" y1="12" y2="184" stroke="#f97316" stroke-width="1.2" stroke-dasharray="3 3"></line>
+
+        <path d="M44,167 L60,169 L76,166 L92,168 L108,165 L124,168 L140,166 L156,169 L172,166 L188,167 L204,165 L220,168 L236,166 L252,167 L268,165 L290,38 L306,40 L322,37 L338,39 L354,37 L370,40 L386,38 L402,37 L418,39 L434,38 L450,37 L466,39 L482,38 L498,37 L514,39 L530,38 L546,37 L562,39 L578,38 L594,37 L610,39 L626,38 L642,37 L658,39 L674,38 L690,37 L706,39 L722,38 L748,38"
+              fill="none" stroke="#6d5efc" stroke-width="2" stroke-linejoin="round"></path>
+        <path d="M44,180 L156,179 L268,180 L290,180 L418,181 L562,180 L748,180"
+              fill="none" stroke="#22c55e" stroke-width="2" stroke-linejoin="round"></path>
+
+        <circle cx="290" cy="38" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
+        <circle cx="418" cy="39" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
+        <circle cx="610" cy="39" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
+
+        <text x="44" y="197" fill="#6b7489" font-family="Inter, sans-serif" font-size="10.5">Minute 0</text>
+        <text x="748" y="197" fill="#6b7489" font-family="Inter, sans-serif" font-size="10.5" text-anchor="end">Minute 45</text>
+      </svg>
+      <div class="chart-legend">
+        <span><i style="background:#6d5efc"></i>Zuschauer</span>
+        <span><i style="background:#22c55e"></i>Chatter</span>
+        <span><i style="background:#f59e0b;border-radius:50%"></i>simuliert</span>
+        <span><i style="background:#f97316"></i>Auffälligkeit</span>
+      </div>
+
+      <div class="notice warn small mt">
+        <strong>Ungewöhnlicher Anstieg</strong> <span class="muted">Minute 15 · Bewertung 0,94</span>
+        <div class="mono small muted" style="word-break:break-all">from: 43 · to: 343 · delta: 300 · raid: false</div>
+      </div>
+      <div class="notice warn small mt">
+        <strong>Auffällig glatte Kurve</strong> <span class="muted">Minute 25 · Bewertung 0,88</span>
+        <div class="mono small muted" style="word-break:break-all">windowSamples: 10 · average: 341 · stdDev: 0,41</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2 style="margin:0">Bisherige Läufe</h2>
+        <button class="ui ghost sm" type="button">Aktualisieren</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Szenario</th><th>Konto</th><th>Art</th><th>Ergebnis</th><th>Gestartet</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Plötzlicher Sprung</td><td class="small">max@example.de</td><td class="small">Durchrechnen</td><td><span class="pill ok">Erkannt</span></td><td class="small">08.11.2026 21:31</td><td><span class="small muted">Anzeigen · Löschen</span></td></tr>
+            <tr><td>Echter Raid (Gegenprobe)</td><td class="small">max@example.de</td><td class="small">Durchrechnen</td><td><span class="pill ok">Richtig nicht gemeldet</span></td><td class="small">08.11.2026 21:28</td><td><span class="small muted">Anzeigen · Löschen</span></td></tr>
+            <tr><td>Schleichender Anstieg</td><td class="small">max@example.de</td><td class="small">Durchrechnen</td><td><span class="pill warn">Teilweise erkannt</span></td><td class="small">08.11.2026 21:22</td><td><span class="small muted">Anzeigen · Löschen</span></td></tr>
+            <tr><td>Chatter-Lücke</td><td class="small">jana@example.de</td><td class="small">Live aufschlagen</td><td><span class="pill ok">Erkannt</span></td><td class="small">07.11.2026 19:04</td><td><span class="small muted">Anzeigen · Löschen</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  (function () {
+    var buttons = Array.prototype.slice.call(document.querySelectorAll('#screens button'));
+    var navItems = Array.prototype.slice.call(document.querySelectorAll('#appnav span'));
+    var topbar = document.getElementById('apptopbar');
+
+    var navFor = {
+      dashboard: 'dashboard',
+      chat: 'chat',
+      overlay: 'overlay',
+      stats: 'stats',
+      admin: 'admin',
+      settings: null,
+      wizard: null,
+      login: null
+    };
+
+    function show(name) {
+      buttons.forEach(function (b) {
+        b.setAttribute('aria-current', b.dataset.screen === name ? 'true' : 'false');
+      });
+      document.querySelectorAll('main > section').forEach(function (s) {
+        s.hidden = s.id !== 's-' + name;
+      });
+
+      // Login hat keine Kopfzeile, der Rest schon.
+      topbar.hidden = name === 'login';
+
+      var active = navFor[name];
+      navItems.forEach(function (n) {
+        if (active && n.dataset.nav === active) n.classList.add('active');
+        else n.classList.remove('active');
+      });
+
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () {
+        var name = b.dataset.screen;
+        show(name);
+        try {
+          if (location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
+        } catch (err) {
+          /* in manchen Ansichten nicht erlaubt */
+        }
+      });
+    });
+
+    var start = (location.hash || '').replace('#', '');
+    show(Object.prototype.hasOwnProperty.call(navFor, start) ? start : 'dashboard');
+
+    window.addEventListener('hashchange', function () {
+      var next = (location.hash || '').replace('#', '');
+      if (Object.prototype.hasOwnProperty.call(navFor, next)) show(next);
+    });
+  })();
+</script>

@@ -1,0 +1,15 @@
+# Zusatzdatei für einen Docker-Start auf dem eigenen Rechner.
+# Veröffentlicht Port 3000, den in Coolify der Proxy übernimmt.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+#
+# In Coolify wird diese Datei NICHT verwendet.
+
+services:
+  app:
+    ports:
+      - '3000:3000'
+    environment:
+      PUBLIC_URL: http://localhost:3000
+      INGEST_HOST: localhost
+      LOG_LEVEL: debug

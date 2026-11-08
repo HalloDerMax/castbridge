@@ -1,0 +1,26 @@
+# Abhängigkeiten und Bauergebnisse
+node_modules/
+dist/
+
+# Geheimnisse: NIE einchecken. Die Vorlage bleibt drin.
+.env
+.env.*
+!.env.example
+
+# Laufzeitdaten (Uploads, aufbereitete Ersatzmedien, Vorschaubilder)
+data/
+*.log
+
+# Ersatzmedien werden zur Laufzeit erzeugt
+standby/*.flv
+standby/*.mp4
+!standby/.gitkeep
+
+# Betriebssystem- und Editor-Kram
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/
+
+# package-lock.json wird absichtlich NICHT ignoriert:
+# der Docker-Build nutzt "npm ci" und braucht sie.

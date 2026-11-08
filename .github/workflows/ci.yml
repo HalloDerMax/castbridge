@@ -1,0 +1,57 @@
+# Prüft jeden Push und jeden Pull Request. Nur wenn das hier grün
+# ist, soll deployt werden (siehe docs/DEPLOY.md, Abschnitt 6).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  pruefen:
+    name: Typen, Build und Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: ffmpeg installieren
+        # Die Tests für Umschalter und Ersatzbild arbeiten mit echtem
+        # ffmpeg, nicht mit Platzhaltern.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | head -1
+
+      - name: Abhängigkeiten Server
+        working-directory: server
+        run: npm ci --no-audit --no-fund
+
+      - name: Abhängigkeiten Frontend
+        working-directory: web
+        run: npm ci --no-audit --no-fund
+
+      - name: Frontend bauen
+        # Muss vor den Tests laufen: der HTTP-Rauchtest prüft, dass die
+        # Oberfläche ausgeliefert wird.
+        working-directory: web
+        run: npm run build
+
+      - name: Server bauen
+        working-directory: server
+        run: npm run build
+
+      - name: Tests
+        working-directory: server
+        run: npm test
+
+      - name: Docker-Abbild bauen
+        # Fängt Fehler im Dockerfile, bevor Coolify sie findet.
+        run: docker build -f server/Dockerfile -t castbridge:ci .

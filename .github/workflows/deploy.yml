@@ -1,0 +1,49 @@
+# Löst das Deployment in Coolify aus, NACHDEM die CI grün war.
+#
+# Nur nötig, wenn du Weg B aus docs/DEPLOY.md nimmst, also "nur
+# geprüfte Commits deployen". Bei Weg A (Coolify hört selbst auf
+# GitHub) bleibt diese Datei einfach untätig: ohne die beiden
+# Secrets bricht sie nichts ab, sie meldet nur, dass sie nichts
+# zu tun hat.
+#
+# Dafür in GitHub unter Settings → Secrets and variables → Actions
+# anlegen:
+#   COOLIFY_WEBHOOK  = die Deploy-Webhook-URL der Ressource
+#   COOLIFY_TOKEN    = ein API-Token aus Coolify (Keys & Tokens)
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ausloesen:
+    name: Coolify anstoßen
+    runs-on: ubuntu-latest
+    # Bei workflow_dispatch gibt es kein Ergebnis zu prüfen.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Deployment anfordern
+        env:
+          WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          if [ -z "$WEBHOOK" ] || [ -z "$TOKEN" ]; then
+            echo "COOLIFY_WEBHOOK oder COOLIFY_TOKEN nicht gesetzt."
+            echo "Das ist in Ordnung, wenn Coolify selbst auf GitHub hört (Weg A)."
+            exit 0
+          fi
+          code=$(curl -sS -o response.txt -w '%{http_code}' \
+            -X GET "$WEBHOOK" \
+            -H "Authorization: Bearer $TOKEN")
+          echo "Antwort $code"
+          cat response.txt
+          echo
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "Coolify hat das Deployment nicht angenommen."
+            exit 1
+          fi

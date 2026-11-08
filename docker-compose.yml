@@ -1,0 +1,124 @@
+# ─────────────────────────────────────────────────────────────
+# Castbridge – Deployment
+#
+# In Coolify als Ressource vom Typ "Docker Compose" aus dem
+# Git-Repository anlegen. Die Werte kommen aus den Umgebungs-
+# variablen der Coolify-Ressource, NICHT aus einer Datei im
+# Repository: eine .env wird nie eingecheckt.
+#
+# Lokal funktioniert dieselbe Datei, weil "docker compose"
+# eine .env neben dieser Datei von sich aus einliest.
+#
+# WICHTIG: 1935/TCP und 8890/UDP laufen NICHT über den Coolify-
+# Proxy. Sie sind hier direkt am Container gemappt und müssen
+# zusätzlich in der Hetzner-Firewall offen sein. Die Web-App
+# selbst läuft über den Proxy auf einer Subdomain.
+# ─────────────────────────────────────────────────────────────
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: castbridge
+      # Fehlt die Variable, bricht der Start ab, statt leise ein
+      # leeres Passwort zu setzen.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt}
+      POSTGRES_DB: castbridge
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U castbridge']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    environment:
+      MTX_CONFPATH: /mediamtx.yml
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - '1935:1935/tcp' # RTMP aus OBS  (Firewall öffnen!)
+      - '8890:8890/udp' # SRT aus OBS   (Firewall öffnen!)
+    depends_on:
+      app:
+        condition: service_started
+
+  app:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    environment:
+      # ── Pflicht, kommt aus den Coolify-Variablen ───────────
+      PUBLIC_URL: ${PUBLIC_URL:?PUBLIC_URL fehlt}
+      INGEST_HOST: ${INGEST_HOST:?INGEST_HOST fehlt}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY fehlt}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET fehlt}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+
+      # ── Von Coolify an den Proxy gemeldet ──────────────────
+      # Sorgt dafür, dass die Subdomain auf Port 3000 dieses
+      # Dienstes zeigt. Alternativ im Coolify-Formular unter
+      # "Domains" für den Dienst "app" eintragen.
+      SERVICE_FQDN_APP_3000: ${SERVICE_FQDN_APP_3000:-}
+
+      # ── Innerhalb des Compose-Netzes fest verdrahtet ───────
+      DATABASE_URL: postgres://castbridge:${POSTGRES_PASSWORD}@postgres:5432/castbridge
+      REDIS_URL: redis://redis:6379
+      MEDIAMTX_API_URL: http://mediamtx:9997
+      MEDIAMTX_RTMP_URL: rtmp://mediamtx:1935
+      DATA_DIR: /data
+      PORT: '3000'
+      NODE_ENV: production
+
+      # ── Optional ──────────────────────────────────────────
+      MEDIAMTX_INGEST_PATH_PREFIX: ${MEDIAMTX_INGEST_PATH_PREFIX:-live}
+      INGEST_RTMP_PORT: ${INGEST_RTMP_PORT:-1935}
+      INGEST_SRT_PORT: ${INGEST_SRT_PORT:-8890}
+      MAX_CONCURRENT_STREAMS: ${MAX_CONCURRENT_STREAMS:-3}
+      TWITCH_MAX_BITRATE_KBPS: ${TWITCH_MAX_BITRATE_KBPS:-6000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID:-}
+      TWITCH_CLIENT_SECRET: ${TWITCH_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      KICK_CLIENT_ID: ${KICK_CLIENT_ID:-}
+      KICK_CLIENT_SECRET: ${KICK_CLIENT_SECRET:-}
+    volumes:
+      - appdata:/data
+    expose:
+      - '3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  pgdata:
+  appdata:

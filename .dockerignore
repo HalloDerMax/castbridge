@@ -1,0 +1,20 @@
+# Nur das in den Build-Kontext schicken, was gebraucht wird.
+# Hält die Übertragung an den Docker-Daemon klein und verhindert,
+# dass lokale Geheimnisse oder Daten im Abbild landen.
+# web/dist und server/dist fehlen hier absichtlich: beides wird
+# im Abbild selbst gebaut.
+node_modules
+**/node_modules
+dist
+**/dist
+.env
+.env.*
+!.env.example
+data
+**/data
+*.log
+.git
+.github
+docs
+standby/*.flv
+standby/*.mp4

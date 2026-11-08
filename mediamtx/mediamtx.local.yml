@@ -1,0 +1,46 @@
+###############################################################
+# MediaMTX – Variante für lokales Testen auf dem eigenen PC
+#
+# Unterschied zur Server-Fassung: die Zugangsprüfung geht an
+# 127.0.0.1 statt an den Docker-Dienst "app".
+#
+# Start:  mediamtx.exe mediamtx.local.yml
+###############################################################
+
+logLevel: info
+logDestinations: [stdout]
+
+api: yes
+apiAddress: 127.0.0.1:9997
+
+metrics: no
+
+# Die lokal laufende Web-App prüft den Ingest-Key.
+authMethod: http
+authHTTPAddress: http://127.0.0.1:3000/api/ingest/auth
+authHTTPExclude:
+  - action: api
+  - action: metrics
+  - action: pprof
+  - action: read
+
+rtmp: yes
+rtmpAddress: :1935
+rtmpEncryption: "no"
+
+srt: yes
+srtAddress: :8890
+
+rtsp: yes
+rtspAddress: 127.0.0.1:8554
+rtspTransports: [tcp]
+
+hls: no
+webrtc: no
+
+readTimeout: 20s
+writeTimeout: 20s
+writeQueueSize: 4096
+
+paths:
+  all_others:

@@ -1,0 +1,52 @@
+###############################################################
+# MediaMTX – Ingest für Castbridge
+# Nimmt RTMP (OBS) und SRT an, fragt die Web-App, ob der
+# Ingest-Key gültig ist, und stellt die Streams intern bereit.
+###############################################################
+
+logLevel: info
+logDestinations: [stdout]
+
+# ── Steuer-API (nur im Docker-Netz erreichbar) ───────────────
+api: yes
+apiAddress: :9997
+
+metrics: yes
+metricsAddress: :9998
+
+# ── Zugangsprüfung über die Web-App ──────────────────────────
+# Jeder Publish-Versuch wird an die App geschickt. Sie antwortet
+# mit 200 (erlaubt) oder 401 (abgelehnt).
+authMethod: http
+authHTTPAddress: http://app:3000/api/ingest/auth
+authHTTPExclude:
+  - action: api
+  - action: metrics
+  - action: pprof
+  - action: read      # internes Lesen durch Relay/Vorschaubild
+    ips: ['127.0.0.1/32', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
+
+# ── Protokolle ───────────────────────────────────────────────
+rtmp: yes
+rtmpAddress: :1935
+rtmpEncryption: "no"
+
+srt: yes
+srtAddress: :8890
+
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp]
+
+hls: no
+webrtc: no
+
+# Puffer etwas großzügig, damit kurze Netz-Wackler nicht sofort
+# zum Abbruch führen.
+readTimeout: 20s
+writeTimeout: 20s
+writeQueueSize: 4096
+udpMaxPayloadSize: 1472
+
+paths:
+  all_others:
