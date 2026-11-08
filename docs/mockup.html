@@ -249,7 +249,6 @@
   .pill.ok { background: #0d2518; border-color: #1d5336; color: #6ee7a0; }
   .pill.warn { background: #2b1f08; border-color: #6b4c12; color: #fcd34d; }
   .pill.err { background: #2a1016; border-color: #5c2030; color: #ffa3b0; }
-  .pill.sim { background: #2b1f08; border-color: #8a5a0b; color: #ffc86b; }
 
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); flex: none; }
   .dot.live { background: var(--ok); box-shadow: 0 0 0 3px #22c55e33; animation: pulse 2s infinite; }
@@ -1215,9 +1214,6 @@
         <path d="M44,214 L92,212 L140,209 L188,207 L236,210 L284,205 L332,203 L380,204 L430,200 L478,198 L526,201 L574,204 L604,203 L652,206 L700,208 L748,210"
               fill="none" stroke="#53fc18" stroke-width="2" stroke-linejoin="round"></path>
 
-        <circle cx="430" cy="42" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
-        <circle cx="478" cy="47" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
-        <circle cx="526" cy="60" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
 
         <text x="44" y="233" fill="#6b7489" font-family="Inter, sans-serif" font-size="10.5">09.10.</text>
         <text x="748" y="233" fill="#6b7489" font-family="Inter, sans-serif" font-size="10.5" text-anchor="end">08.11.</text>
@@ -1226,10 +1222,8 @@
         <span><i style="background:#9146ff"></i>Twitch</span>
         <span><i style="background:#ff0033"></i>YouTube</span>
         <span><i style="background:#53fc18"></i>Kick</span>
-        <span><i style="background:#f59e0b;border-radius:50%"></i>simuliert</span>
         <span><i style="background:#f97316"></i>Auffälligkeit</span>
       </div>
-      <div class="notice warn small mt">Dieser Zeitraum enthält simulierte Zuschauerdaten. Sie sind orange markiert.</div>
     </div>
 
     <div class="card">
@@ -1238,7 +1232,7 @@
         <table>
           <thead><tr><th>Plattform</th><th>Peak</th><th>Durchschnitt</th><th>Messpunkte</th></tr></thead>
           <tbody>
-            <tr><td><span class="row" style="gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:#9146ff;display:inline-block"></i>Twitch</span></td><td>1.284</td><td>842</td><td>1.120 <span class="muted small">(45 sim.)</span></td></tr>
+            <tr><td><span class="row" style="gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:#9146ff;display:inline-block"></i>Twitch</span></td><td>1.284</td><td>842</td><td>1.120</td></tr>
             <tr><td><span class="row" style="gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:#ff0033;display:inline-block"></i>YouTube</span></td><td>318</td><td>201</td><td>1.120</td></tr>
             <tr><td><span class="row" style="gap:6px"><i style="width:9px;height:9px;border-radius:3px;background:#53fc18;display:inline-block"></i>Kick</span></td><td>141</td><td>65</td><td>986</td></tr>
           </tbody>
@@ -1273,11 +1267,6 @@
           <div class="muted">21:29 · Twitch · Bewertung 0,71</div>
           <div class="mono small muted" style="margin-top:4px">averageViewers: 1184 · averageChatters: 3,2 · ratio: 0,0027</div>
         </div>
-        <div class="notice warn small">
-          <div class="row between"><strong>Auffällig glatte Kurve</strong><span class="pill sim">aus Simulation</span></div>
-          <div class="muted">02.11., 18:40 · Twitch · Bewertung 0,94</div>
-          <div class="mono small muted" style="margin-top:4px">windowSamples: 10 · average: 341 · stdDev: 0,4</div>
-        </div>
       </div>
     </div>
   </section>
@@ -1287,10 +1276,9 @@
     <div class="page-head">
       <h1>Admin</h1>
       <div class="row">
-        <button class="ui" type="button">Überblick</button>
+        <button class="ui primary" type="button">Überblick</button>
         <button class="ui" type="button">Nutzer</button>
         <button class="ui" type="button">Einladungen</button>
-        <button class="ui primary" type="button">Viewbot-Simulator</button>
         <button class="ui" type="button">Protokoll</button>
       </div>
     </div>
@@ -1311,7 +1299,7 @@
           <thead><tr><th>E-Mail</th><th>Bitrate</th><th>Auflösung</th><th>Plattformen</th><th>Quelle</th><th>Nachr./Min.</th></tr></thead>
           <tbody>
             <tr>
-              <td>max@example.de <span class="pill sim" style="margin-left:6px">SIM</span></td>
+              <td>max@example.de</td>
               <td>5.840 kbps</td><td>1920×1080</td>
               <td>Twitch (Live), YouTube (Live), Kick (Verbinde neu …)</td>
               <td>obs</td><td>34</td>
@@ -1347,140 +1335,6 @@
           <div class="hint">Schützt den Server. Darüber hinaus werden neue Sender abgewiesen.</div>
         </div>
         <button class="ui primary" type="button">Speichern</button>
-      </div>
-    </div>
-
-    <div class="card mt">
-      <div class="card-head">
-        <h2 style="margin:0">Viewbot-Simulator &amp; Erkennungstest</h2>
-      </div>
-      <p>Erzeugt synthetische Zuschauerkurven und lässt denselben Detektor darüber laufen, der auch echte Streams prüft. So siehst du, welche Botting-Muster erkannt werden und welche durchrutschen, und kannst die Schwellen danach einstellen.</p>
-      <div class="notice info small mb">Simulierte Werte werden in der Datenbank als synthetisch geführt und in Diagrammen und Exporten gekennzeichnet. Der Simulator beschickt nur die eigene Statistik und sendet keinen Verkehr an Twitch, YouTube oder Kick.</div>
-
-      <div class="grid cols-2">
-        <div class="field">
-          <span class="label">Szenario</span>
-          <div class="inp">Plötzlicher Sprung</div>
-          <div class="hint">Zuschauerzahl springt ohne Raid innerhalb einer Minute nach oben.<br><strong>Erwartet:</strong> Ungewöhnlicher Anstieg</div>
-        </div>
-        <div class="field">
-          <span class="label">Für welches Konto</span>
-          <div class="inp">max@example.de</div>
-        </div>
-        <div class="field">
-          <span class="label">Plattform</span>
-          <div class="inp">Twitch</div>
-        </div>
-        <div class="field">
-          <span class="label">Betriebsart</span>
-          <div class="inp">Durchrechnen (eigene Test-Sitzung)</div>
-        </div>
-        <div class="field">
-          <span class="label">Organische Zuschauer: 40</span>
-          <div class="range"><i style="width:2%"></i><b style="left:2%"></b></div>
-        </div>
-        <div class="field">
-          <span class="label">Künstlicher Aufschlag: 300</span>
-          <div class="range"><i style="width:15%"></i><b style="left:15%"></b></div>
-        </div>
-        <div class="field">
-          <span class="label">Dauer in Minuten: 45</span>
-          <div class="range"><i style="width:12%"></i><b style="left:12%"></b></div>
-        </div>
-        <div class="field">
-          <span class="label">Chatter-Anteil organisch: 6,0 %</span>
-          <div class="range"><i style="width:20%"></i><b style="left:20%"></b></div>
-        </div>
-      </div>
-
-      <div class="row">
-        <button class="ui primary" type="button">Test starten</button>
-        <span class="spacer"></span>
-        <button class="ui ghost sm" type="button">Aktuelle Schwellen +</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <h2 style="margin:0">Ergebnis: Erkannt</h2>
-        <span class="pill ok">Plötzlicher Sprung</span>
-      </div>
-      <div class="notice ok mb">Die Erkennung hat das Muster gefunden.</div>
-
-      <div class="grid cols-2 mb">
-        <div>
-          <div class="small muted">Erwartet</div>
-          <div>Ungewöhnlicher Anstieg</div>
-        </div>
-        <div>
-          <div class="small muted">Erkannt</div>
-          <div>Ungewöhnlicher Anstieg, Auffällig glatte Kurve</div>
-        </div>
-      </div>
-
-      <h3>Erzeugte Kurve</h3>
-      <svg class="chart" viewBox="0 0 760 200" role="img" aria-label="Simulierte Zuschauerkurve mit Chattern">
-        <g stroke="#212a3a" stroke-width="1">
-          <line x1="44" x2="748" y1="12" y2="12" stroke-dasharray="3 4"></line>
-          <line x1="44" x2="748" y1="55" y2="55" stroke-dasharray="3 4"></line>
-          <line x1="44" x2="748" y1="98" y2="98" stroke-dasharray="3 4"></line>
-          <line x1="44" x2="748" y1="141" y2="141" stroke-dasharray="3 4"></line>
-          <line x1="44" x2="748" y1="184" y2="184"></line>
-        </g>
-        <g fill="#6b7489" font-family="Inter, sans-serif" font-size="10.5" text-anchor="end">
-          <text x="36" y="16">400</text>
-          <text x="36" y="59">300</text>
-          <text x="36" y="102">200</text>
-          <text x="36" y="145">100</text>
-          <text x="36" y="188">0</text>
-        </g>
-
-        <line x1="290" x2="290" y1="12" y2="184" stroke="#f97316" stroke-width="1.2" stroke-dasharray="3 3"></line>
-
-        <path d="M44,167 L60,169 L76,166 L92,168 L108,165 L124,168 L140,166 L156,169 L172,166 L188,167 L204,165 L220,168 L236,166 L252,167 L268,165 L290,38 L306,40 L322,37 L338,39 L354,37 L370,40 L386,38 L402,37 L418,39 L434,38 L450,37 L466,39 L482,38 L498,37 L514,39 L530,38 L546,37 L562,39 L578,38 L594,37 L610,39 L626,38 L642,37 L658,39 L674,38 L690,37 L706,39 L722,38 L748,38"
-              fill="none" stroke="#6d5efc" stroke-width="2" stroke-linejoin="round"></path>
-        <path d="M44,180 L156,179 L268,180 L290,180 L418,181 L562,180 L748,180"
-              fill="none" stroke="#22c55e" stroke-width="2" stroke-linejoin="round"></path>
-
-        <circle cx="290" cy="38" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
-        <circle cx="418" cy="39" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
-        <circle cx="610" cy="39" r="2.6" fill="#f59e0b" stroke="#1a1205" stroke-width="0.8"></circle>
-
-        <text x="44" y="197" fill="#6b7489" font-family="Inter, sans-serif" font-size="10.5">Minute 0</text>
-        <text x="748" y="197" fill="#6b7489" font-family="Inter, sans-serif" font-size="10.5" text-anchor="end">Minute 45</text>
-      </svg>
-      <div class="chart-legend">
-        <span><i style="background:#6d5efc"></i>Zuschauer</span>
-        <span><i style="background:#22c55e"></i>Chatter</span>
-        <span><i style="background:#f59e0b;border-radius:50%"></i>simuliert</span>
-        <span><i style="background:#f97316"></i>Auffälligkeit</span>
-      </div>
-
-      <div class="notice warn small mt">
-        <strong>Ungewöhnlicher Anstieg</strong> <span class="muted">Minute 15 · Bewertung 0,94</span>
-        <div class="mono small muted" style="word-break:break-all">from: 43 · to: 343 · delta: 300 · raid: false</div>
-      </div>
-      <div class="notice warn small mt">
-        <strong>Auffällig glatte Kurve</strong> <span class="muted">Minute 25 · Bewertung 0,88</span>
-        <div class="mono small muted" style="word-break:break-all">windowSamples: 10 · average: 341 · stdDev: 0,41</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <h2 style="margin:0">Bisherige Läufe</h2>
-        <button class="ui ghost sm" type="button">Aktualisieren</button>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Szenario</th><th>Konto</th><th>Art</th><th>Ergebnis</th><th>Gestartet</th><th></th></tr></thead>
-          <tbody>
-            <tr><td>Plötzlicher Sprung</td><td class="small">max@example.de</td><td class="small">Durchrechnen</td><td><span class="pill ok">Erkannt</span></td><td class="small">08.11.2026 21:31</td><td><span class="small muted">Anzeigen · Löschen</span></td></tr>
-            <tr><td>Echter Raid (Gegenprobe)</td><td class="small">max@example.de</td><td class="small">Durchrechnen</td><td><span class="pill ok">Richtig nicht gemeldet</span></td><td class="small">08.11.2026 21:28</td><td><span class="small muted">Anzeigen · Löschen</span></td></tr>
-            <tr><td>Schleichender Anstieg</td><td class="small">max@example.de</td><td class="small">Durchrechnen</td><td><span class="pill warn">Teilweise erkannt</span></td><td class="small">08.11.2026 21:22</td><td><span class="small muted">Anzeigen · Löschen</span></td></tr>
-            <tr><td>Chatter-Lücke</td><td class="small">jana@example.de</td><td class="small">Live aufschlagen</td><td><span class="pill ok">Erkannt</span></td><td class="small">07.11.2026 19:04</td><td><span class="small muted">Anzeigen · Löschen</span></td></tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </section>
